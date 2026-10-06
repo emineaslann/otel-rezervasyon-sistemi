@@ -1,0 +1,16 @@
+# Java / Maven derleme çıktıları
+target/
+*.class
+
+# IDE ayarları
+.idea/
+*.iml
+.vscode/
+
+# Gizli bilgiler (veritabanı şifresi, JWT anahtarı)
+application-local.properties
+.env
+
+# İşletim sistemi dosyaları
+Thumbs.db
+.DS_Store
