@@ -179,4 +179,94 @@ BEGIN
            v_odenen                                AS Odenen,
            GREATEST(v_oda + v_hizmet - v_odenen, 0) AS Kalan;
 END $$
+
+
+-- =====================================================================
+-- sp_CheckOut — ZORUNLU TRANSACTION
+--   Adımlar (hepsi ya birlikte olur ya hiç olmaz):
+--     1) Konaklama kapatılır (GercekCikis)  -> trigger odayı TEMIZLIKTE yapar
+--     2) Kalan tutar için ödeme kaydedilir
+--     3) Ödeme yeterliliği doğrulanır, rezervasyon TAMAMLANDI yapılır
+--     4) Oda durumunun güncellendiği doğrulanır
+--   Herhangi bir adım hata verirse EXIT HANDLER -> ROLLBACK
+--   p_tutar NULL ise kalan tutarın tamamı tahsil edilir.
+-- =====================================================================
+DROP PROCEDURE IF EXISTS sp_CheckOut $$
+CREATE PROCEDURE sp_CheckOut(
+    IN p_konaklamaID INT UNSIGNED,
+    IN p_personelID  INT UNSIGNED,
+    IN p_odemeTuru   VARCHAR(10),
+    IN p_tutar       DECIMAL(12,2)
+)
+BEGIN
+    DECLARE v_rezID    INT UNSIGNED;
+    DECLARE v_odaID    INT UNSIGNED;
+    DECLARE v_cikis    DATETIME;
+    DECLARE v_toplam   DECIMAL(12,2);
+    DECLARE v_odenen   DECIMAL(12,2);
+    DECLARE v_kalan    DECIMAL(12,2);
+    DECLARE v_alinan   DECIMAL(12,2);
+    DECLARE v_odaDurum VARCHAR(20);
+    DECLARE v_mesaj    VARCHAR(255);
+
+    -- Herhangi bir SQL hatasında: önce geri al, sonra hatayı dışarı ilet
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION, SQLWARNING
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+        SELECT k.RezervasyonID, k.GercekCikis, r.OdaID
+          INTO v_rezID, v_cikis, v_odaID
+          FROM Konaklama k
+          JOIN Rezervasyon r ON r.RezervasyonID = k.RezervasyonID
+         WHERE k.KonaklamaID = p_konaklamaID
+           FOR UPDATE;
+
+        IF v_rezID IS NULL THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Konaklama bulunamadı.';
+        END IF;
+        IF v_cikis IS NOT NULL THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Bu konaklama için check-out zaten yapılmış.';
+        END IF;
+
+        SET v_toplam = fn_KonaklamaToplam(p_konaklamaID);
+        SELECT COALESCE(SUM(Tutar), 0) INTO v_odenen FROM Odeme WHERE KonaklamaID = p_konaklamaID;
+        SET v_kalan  = v_toplam - v_odenen;
+        SET v_alinan = COALESCE(p_tutar, v_kalan);
+
+        -- Adım 1: konaklamayı kapat (trigger -> oda TEMIZLIKTE)
+        UPDATE Konaklama
+           SET GercekCikis = NOW(), CikisPersonelID = p_personelID
+         WHERE KonaklamaID = p_konaklamaID;
+
+        -- Adım 2: ödemeyi kaydet (Tutar > 0 ve ödeme türü kısıtları burada devreye girer)
+        IF v_kalan > 0 OR p_tutar IS NOT NULL THEN
+            INSERT INTO Odeme (KonaklamaID, Tutar, OdemeTuru, OdemeTarihi, PersonelID)
+            VALUES (p_konaklamaID, v_alinan, p_odemeTuru, NOW(), p_personelID);
+        END IF;
+
+        -- Adım 3: hesap kapanmış olmalı
+        IF v_odenen + IF(v_kalan > 0 OR p_tutar IS NOT NULL, v_alinan, 0) < v_toplam THEN
+            SET v_mesaj = CONCAT('Ödeme yetersiz: toplam ', v_toplam, ' TL, ödenen ',
+                                 v_odenen + v_alinan, ' TL. İşlem geri alındı.');
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_mesaj;
+        END IF;
+
+        UPDATE Rezervasyon SET Durum = 'TAMAMLANDI' WHERE RezervasyonID = v_rezID;
+
+        -- Adım 4: oda durumunun güncellendiğini doğrula
+        SELECT Durum INTO v_odaDurum FROM Oda WHERE OdaID = v_odaID;
+        IF v_odaDurum <> 'TEMIZLIKTE' THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Oda durumu güncellenemedi. İşlem geri alındı.';
+        END IF;
+    COMMIT;
+
+    SELECT p_konaklamaID AS KonaklamaID, v_toplam AS GenelToplam,
+           v_odenen AS OncedenOdenen, v_alinan AS AlinanOdeme,
+           v_odaDurum AS OdaDurumu, 'TAMAMLANDI' AS RezervasyonDurumu;
+END $$
+
+
 DELIMITER ;
