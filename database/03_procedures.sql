@@ -87,4 +87,96 @@ BEGIN
                AND p_giris < r.CikisTarihi)
      ORDER BY ot.TemelFiyat, o.OdaNo;
 END $$
+
+
+-- ---------------------------------------------------------------------
+-- fn_KonaklamaToplam: oda ücreti (sezonluk) + ek hizmetler
+-- ---------------------------------------------------------------------
+DROP FUNCTION IF EXISTS fn_KonaklamaToplam $$
+CREATE FUNCTION fn_KonaklamaToplam(p_konaklamaID INT UNSIGNED)
+RETURNS DECIMAL(12,2)
+READS SQL DATA
+BEGIN
+    DECLARE v_oda DECIMAL(12,2) DEFAULT 0;
+    DECLARE v_hizmet DECIMAL(12,2) DEFAULT 0;
+
+    SELECT fn_KonaklamaUcreti(o.OdaTipiID, r.GirisTarihi, r.CikisTarihi) INTO v_oda
+      FROM Konaklama k
+      JOIN Rezervasyon r ON r.RezervasyonID = k.RezervasyonID
+      JOIN Oda o         ON o.OdaID = r.OdaID
+     WHERE k.KonaklamaID = p_konaklamaID;
+
+    SELECT COALESCE(SUM(kh.Adet * kh.BirimFiyat), 0) INTO v_hizmet
+      FROM KonaklamaHizmeti kh
+     WHERE kh.KonaklamaID = p_konaklamaID;
+
+    RETURN v_oda + v_hizmet;
+END $$
+
+-- =====================================================================
+-- (2) sp_KonaklamaToplamTutar
+--     Sonuç 1: gece gece fiyat dökümü
+--     Sonuç 2: ek hizmet dökümü
+--     Sonuç 3: özet (oda + hizmet = toplam, ödenen, kalan)
+-- =====================================================================
+DROP PROCEDURE IF EXISTS sp_KonaklamaToplamTutar $$
+CREATE PROCEDURE sp_KonaklamaToplamTutar(IN p_konaklamaID INT UNSIGNED)
+BEGIN
+    DECLARE v_tip    INT UNSIGNED;
+    DECLARE v_giris  DATE;
+    DECLARE v_cikis  DATE;
+    DECLARE v_oda    DECIMAL(12,2);
+    DECLARE v_hizmet DECIMAL(12,2);
+    DECLARE v_odenen DECIMAL(12,2);
+
+    SELECT o.OdaTipiID, r.GirisTarihi, r.CikisTarihi
+      INTO v_tip, v_giris, v_cikis
+      FROM Konaklama k
+      JOIN Rezervasyon r ON r.RezervasyonID = k.RezervasyonID
+      JOIN Oda o         ON o.OdaID = r.OdaID
+     WHERE k.KonaklamaID = p_konaklamaID;
+
+    IF v_tip IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Konaklama bulunamadı.';
+    END IF;
+
+    -- 1) gece dökümü: özyinelemeli CTE her geceyi bir satır olarak üretir
+    WITH RECURSIVE geceler (Gece) AS (
+        SELECT v_giris
+        UNION ALL
+        SELECT DATE_ADD(Gece, INTERVAL 1 DAY) FROM geceler
+         WHERE DATE_ADD(Gece, INTERVAL 1 DAY) < v_cikis
+    )
+    SELECT g.Gece,
+           COALESCE((SELECT s.SezonAdi FROM SezonFiyati s
+                      WHERE s.OdaTipiID = v_tip
+                        AND g.Gece BETWEEN s.BaslangicTarihi AND s.BitisTarihi
+                      LIMIT 1), 'Temel fiyat') AS Sezon,
+           fn_GecelikFiyat(v_tip, g.Gece)        AS Fiyat
+      FROM geceler g
+     ORDER BY g.Gece;
+
+    -- 2) ek hizmet dökümü
+    SELECT kh.KonaklamaHizmetiID, eh.HizmetAdi, kh.Adet, kh.BirimFiyat,
+           kh.Adet * kh.BirimFiyat AS Tutar, kh.Tarih
+      FROM KonaklamaHizmeti kh
+      JOIN EkHizmet eh ON eh.EkHizmetID = kh.EkHizmetID
+     WHERE kh.KonaklamaID = p_konaklamaID
+     ORDER BY kh.Tarih;
+
+    -- 3) özet
+    SET v_oda = fn_KonaklamaUcreti(v_tip, v_giris, v_cikis);
+    SELECT COALESCE(SUM(Adet * BirimFiyat), 0) INTO v_hizmet
+      FROM KonaklamaHizmeti WHERE KonaklamaID = p_konaklamaID;
+    SELECT COALESCE(SUM(Tutar), 0) INTO v_odenen
+      FROM Odeme WHERE KonaklamaID = p_konaklamaID;
+
+    SELECT p_konaklamaID                           AS KonaklamaID,
+           DATEDIFF(v_cikis, v_giris)              AS GeceSayisi,
+           v_oda                                   AS OdaUcreti,
+           v_hizmet                                AS HizmetToplami,
+           v_oda + v_hizmet                        AS GenelToplam,
+           v_odenen                                AS Odenen,
+           GREATEST(v_oda + v_hizmet - v_odenen, 0) AS Kalan;
+END $$
 DELIMITER ;
