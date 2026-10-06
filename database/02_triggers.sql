@@ -101,4 +101,51 @@ BEGIN
     END IF;
 END $$
 
+
+-- ---------------------------------------------------------------------
+-- T2-a  Check-in (Konaklama INSERT) -> oda DOLU
+-- ---------------------------------------------------------------------
+DROP TRIGGER IF EXISTS trg_Konaklama_CheckIn_AI $$
+CREATE TRIGGER trg_Konaklama_CheckIn_AI
+AFTER INSERT ON Konaklama
+FOR EACH ROW
+BEGIN
+    IF NEW.GercekCikis IS NULL THEN
+        UPDATE Oda o
+          JOIN Rezervasyon r ON r.OdaID = o.OdaID
+           SET o.Durum = 'DOLU'
+         WHERE r.RezervasyonID = NEW.RezervasyonID;
+    END IF;
+END $$
+
+-- ---------------------------------------------------------------------
+-- T2-b  Check-out (GercekCikis doldurulur) -> oda TEMIZLIKTE
+-- ---------------------------------------------------------------------
+DROP TRIGGER IF EXISTS trg_Konaklama_CheckOut_AU $$
+CREATE TRIGGER trg_Konaklama_CheckOut_AU
+AFTER UPDATE ON Konaklama
+FOR EACH ROW
+BEGIN
+    IF OLD.GercekCikis IS NULL AND NEW.GercekCikis IS NOT NULL THEN
+        UPDATE Oda o
+          JOIN Rezervasyon r ON r.OdaID = o.OdaID
+           SET o.Durum = 'TEMIZLIKTE'
+         WHERE r.RezervasyonID = NEW.RezervasyonID;
+    END IF;
+END $$
+
+-- ---------------------------------------------------------------------
+-- T2-c  Temizlik tamamlandı -> oda tekrar BOS (yalnızca TEMIZLIKTE ise)
+-- ---------------------------------------------------------------------
+DROP TRIGGER IF EXISTS trg_Temizlik_Tamamlandi_AI $$
+CREATE TRIGGER trg_Temizlik_Tamamlandi_AI
+AFTER INSERT ON TemizlikKaydi
+FOR EACH ROW
+BEGIN
+    IF NEW.Durum = 'TAMAMLANDI' THEN
+        UPDATE Oda SET Durum = 'BOS'
+         WHERE OdaID = NEW.OdaID AND Durum = 'TEMIZLIKTE';
+    END IF;
+END $$
+
 DELIMITER ;
