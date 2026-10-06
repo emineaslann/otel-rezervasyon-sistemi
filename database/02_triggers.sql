@@ -148,4 +148,88 @@ BEGIN
     END IF;
 END $$
 
+
+-- ---------------------------------------------------------------------
+-- T3  IslemLog tetikleyicileri: Rezervasyon
+-- ---------------------------------------------------------------------
+DROP TRIGGER IF EXISTS trg_Rezervasyon_Log_AI $$
+CREATE TRIGGER trg_Rezervasyon_Log_AI
+AFTER INSERT ON Rezervasyon
+FOR EACH ROW
+BEGIN
+    INSERT INTO IslemLog (TabloAdi, IslemTuru, KayitID, EskiDeger, YeniDeger)
+    VALUES ('Rezervasyon', 'INSERT', NEW.RezervasyonID, NULL,
+            JSON_OBJECT('MisafirID', NEW.MisafirID, 'OdaID', NEW.OdaID,
+                        'GirisTarihi', NEW.GirisTarihi, 'CikisTarihi', NEW.CikisTarihi,
+                        'KisiSayisi', NEW.KisiSayisi, 'Durum', NEW.Durum));
+END $$
+
+DROP TRIGGER IF EXISTS trg_Rezervasyon_Log_AU $$
+CREATE TRIGGER trg_Rezervasyon_Log_AU
+AFTER UPDATE ON Rezervasyon
+FOR EACH ROW
+BEGIN
+    INSERT INTO IslemLog (TabloAdi, IslemTuru, KayitID, EskiDeger, YeniDeger)
+    VALUES ('Rezervasyon', 'UPDATE', NEW.RezervasyonID,
+            JSON_OBJECT('MisafirID', OLD.MisafirID, 'OdaID', OLD.OdaID,
+                        'GirisTarihi', OLD.GirisTarihi, 'CikisTarihi', OLD.CikisTarihi,
+                        'KisiSayisi', OLD.KisiSayisi, 'Durum', OLD.Durum),
+            JSON_OBJECT('MisafirID', NEW.MisafirID, 'OdaID', NEW.OdaID,
+                        'GirisTarihi', NEW.GirisTarihi, 'CikisTarihi', NEW.CikisTarihi,
+                        'KisiSayisi', NEW.KisiSayisi, 'Durum', NEW.Durum));
+END $$
+
+DROP TRIGGER IF EXISTS trg_Rezervasyon_Log_AD $$
+CREATE TRIGGER trg_Rezervasyon_Log_AD
+AFTER DELETE ON Rezervasyon
+FOR EACH ROW
+BEGIN
+    INSERT INTO IslemLog (TabloAdi, IslemTuru, KayitID, EskiDeger, YeniDeger)
+    VALUES ('Rezervasyon', 'DELETE', OLD.RezervasyonID,
+            JSON_OBJECT('MisafirID', OLD.MisafirID, 'OdaID', OLD.OdaID,
+                        'GirisTarihi', OLD.GirisTarihi, 'CikisTarihi', OLD.CikisTarihi,
+                        'KisiSayisi', OLD.KisiSayisi, 'Durum', OLD.Durum),
+            NULL);
+END $$
+
+-- ---------------------------------------------------------------------
+-- T3  IslemLog tetikleyicileri: Odeme
+-- ---------------------------------------------------------------------
+DROP TRIGGER IF EXISTS trg_Odeme_Log_AI $$
+CREATE TRIGGER trg_Odeme_Log_AI
+AFTER INSERT ON Odeme
+FOR EACH ROW
+BEGIN
+    INSERT INTO IslemLog (TabloAdi, IslemTuru, KayitID, EskiDeger, YeniDeger)
+    VALUES ('Odeme', 'INSERT', NEW.OdemeID, NULL,
+            JSON_OBJECT('KonaklamaID', NEW.KonaklamaID, 'Tutar', NEW.Tutar,
+                        'OdemeTuru', NEW.OdemeTuru, 'OdemeTarihi', NEW.OdemeTarihi,
+                        'PersonelID', NEW.PersonelID));
+END $$
+
+DROP TRIGGER IF EXISTS trg_Odeme_Log_AU $$
+CREATE TRIGGER trg_Odeme_Log_AU
+AFTER UPDATE ON Odeme
+FOR EACH ROW
+BEGIN
+    INSERT INTO IslemLog (TabloAdi, IslemTuru, KayitID, EskiDeger, YeniDeger)
+    VALUES ('Odeme', 'UPDATE', NEW.OdemeID,
+            JSON_OBJECT('KonaklamaID', OLD.KonaklamaID, 'Tutar', OLD.Tutar,
+                        'OdemeTuru', OLD.OdemeTuru, 'OdemeTarihi', OLD.OdemeTarihi),
+            JSON_OBJECT('KonaklamaID', NEW.KonaklamaID, 'Tutar', NEW.Tutar,
+                        'OdemeTuru', NEW.OdemeTuru, 'OdemeTarihi', NEW.OdemeTarihi));
+END $$
+
+DROP TRIGGER IF EXISTS trg_Odeme_Log_AD $$
+CREATE TRIGGER trg_Odeme_Log_AD
+AFTER DELETE ON Odeme
+FOR EACH ROW
+BEGIN
+    INSERT INTO IslemLog (TabloAdi, IslemTuru, KayitID, EskiDeger, YeniDeger)
+    VALUES ('Odeme', 'DELETE', OLD.OdemeID,
+            JSON_OBJECT('KonaklamaID', OLD.KonaklamaID, 'Tutar', OLD.Tutar,
+                        'OdemeTuru', OLD.OdemeTuru, 'OdemeTarihi', OLD.OdemeTarihi),
+            NULL);
+END $$
+
 DELIMITER ;
