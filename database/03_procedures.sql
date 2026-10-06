@@ -269,4 +269,181 @@ BEGIN
 END $$
 
 
+
+-- =====================================================================
+-- sp_RezervasyonOlustur
+--   Oda satırı FOR UPDATE ile kilitlenir: aynı oda için eşzamanlı iki istek
+--   sıraya girer, tetikleyicinin çakışma kontrolü yarış durumunda da güvenli olur.
+-- =====================================================================
+DROP PROCEDURE IF EXISTS sp_RezervasyonOlustur $$
+CREATE PROCEDURE sp_RezervasyonOlustur(
+    IN p_misafirID  INT UNSIGNED,
+    IN p_odaID      INT UNSIGNED,
+    IN p_giris      DATE,
+    IN p_cikis      DATE,
+    IN p_kisi       TINYINT UNSIGNED,
+    IN p_durum      VARCHAR(20)
+)
+BEGIN
+    DECLARE v_durum    VARCHAR(20);
+    DECLARE v_odaDurum VARCHAR(20);
+    DECLARE v_id       INT UNSIGNED;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION, SQLWARNING
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    SET v_durum = COALESCE(p_durum, 'BEKLEMEDE');
+    IF v_durum NOT IN ('BEKLEMEDE','ONAYLI') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Yeni rezervasyon BEKLEMEDE veya ONAYLI olabilir.';
+    END IF;
+    IF p_giris < CURDATE() THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Geçmiş tarihli rezervasyon oluşturulamaz.';
+    END IF;
+
+    START TRANSACTION;
+        SELECT Durum INTO v_odaDurum FROM Oda WHERE OdaID = p_odaID FOR UPDATE;
+        IF v_odaDurum IS NULL THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Oda bulunamadı.';
+        END IF;
+        IF v_odaDurum = 'BAKIMDA' THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Oda bakımda olduğu için rezerve edilemez.';
+        END IF;
+
+        -- çakışma ve kapasite kontrolü trigger'da (trg_Rezervasyon_Cakisma_BI)
+        INSERT INTO Rezervasyon (MisafirID, OdaID, GirisTarihi, CikisTarihi, KisiSayisi, Durum)
+        VALUES (p_misafirID, p_odaID, p_giris, p_cikis, p_kisi, v_durum);
+        SET v_id = LAST_INSERT_ID();
+    COMMIT;
+
+    SELECT r.RezervasyonID, r.Durum, r.GirisTarihi, r.CikisTarihi, r.KisiSayisi,
+           o.OdaNo, ot.TipAdi,
+           DATEDIFF(r.CikisTarihi, r.GirisTarihi) AS GeceSayisi,
+           fn_KonaklamaUcreti(o.OdaTipiID, r.GirisTarihi, r.CikisTarihi) AS ToplamFiyat
+      FROM Rezervasyon r
+      JOIN Oda o      ON o.OdaID = r.OdaID
+      JOIN OdaTipi ot ON ot.OdaTipiID = o.OdaTipiID
+     WHERE r.RezervasyonID = v_id;
+END $$
+
+-- ---------------------------------------------------------------------
+-- sp_RezervasyonIptal  (p_misafirID verilirse sahiplik kontrolü yapılır)
+-- ---------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_RezervasyonIptal $$
+CREATE PROCEDURE sp_RezervasyonIptal(IN p_rezID INT UNSIGNED, IN p_misafirID INT UNSIGNED)
+BEGIN
+    DECLARE v_durum   VARCHAR(20);
+    DECLARE v_misafir INT UNSIGNED;
+
+    SELECT Durum, MisafirID INTO v_durum, v_misafir
+      FROM Rezervasyon WHERE RezervasyonID = p_rezID;
+
+    IF v_durum IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Rezervasyon bulunamadı.';
+    END IF;
+    IF p_misafirID IS NOT NULL AND v_misafir <> p_misafirID THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Bu rezervasyon size ait değil.';
+    END IF;
+    IF v_durum NOT IN ('BEKLEMEDE','ONAYLI') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Yalnızca bekleyen veya onaylı rezervasyonlar iptal edilebilir.';
+    END IF;
+    IF EXISTS (SELECT 1 FROM Konaklama WHERE RezervasyonID = p_rezID) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Check-in yapılmış rezervasyon iptal edilemez.';
+    END IF;
+
+    UPDATE Rezervasyon SET Durum = 'IPTAL' WHERE RezervasyonID = p_rezID;
+    SELECT p_rezID AS RezervasyonID, 'IPTAL' AS Durum;
+END $$
+
+-- ---------------------------------------------------------------------
+-- sp_RezervasyonOnayla
+-- ---------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_RezervasyonOnayla $$
+CREATE PROCEDURE sp_RezervasyonOnayla(IN p_rezID INT UNSIGNED)
+BEGIN
+    DECLARE v_durum VARCHAR(20);
+
+    SELECT Durum INTO v_durum FROM Rezervasyon WHERE RezervasyonID = p_rezID;
+    IF v_durum IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Rezervasyon bulunamadı.';
+    END IF;
+    IF v_durum <> 'BEKLEMEDE' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Yalnızca beklemedeki rezervasyon onaylanabilir.';
+    END IF;
+
+    UPDATE Rezervasyon SET Durum = 'ONAYLI' WHERE RezervasyonID = p_rezID;
+
+    -- e-posta bildirimi için gereken bilgiler
+    SELECT r.RezervasyonID, r.Durum, r.GirisTarihi, r.CikisTarihi, r.KisiSayisi,
+           m.Ad, m.Soyad, m.Eposta, o.OdaNo, ot.TipAdi,
+           fn_KonaklamaUcreti(o.OdaTipiID, r.GirisTarihi, r.CikisTarihi) AS ToplamFiyat
+      FROM Rezervasyon r
+      JOIN Misafir m  ON m.MisafirID = r.MisafirID
+      JOIN Oda o      ON o.OdaID = r.OdaID
+      JOIN OdaTipi ot ON ot.OdaTipiID = o.OdaTipiID
+     WHERE r.RezervasyonID = p_rezID;
+END $$
+
+
+-- ---------------------------------------------------------------------
+-- sp_CheckIn (transaction) -> Konaklama INSERT, trigger odayı DOLU yapar
+-- ---------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_CheckIn $$
+CREATE PROCEDURE sp_CheckIn(IN p_rezID INT UNSIGNED, IN p_personelID INT UNSIGNED)
+BEGIN
+    DECLARE v_durum    VARCHAR(20);
+    DECLARE v_giris    DATE;
+    DECLARE v_cikis    DATE;
+    DECLARE v_odaID    INT UNSIGNED;
+    DECLARE v_odaDurum VARCHAR(20);
+    DECLARE v_kid      INT UNSIGNED;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION, SQLWARNING
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+        SELECT Durum, GirisTarihi, CikisTarihi, OdaID
+          INTO v_durum, v_giris, v_cikis, v_odaID
+          FROM Rezervasyon WHERE RezervasyonID = p_rezID FOR UPDATE;
+
+        IF v_durum IS NULL THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Rezervasyon bulunamadı.';
+        END IF;
+        IF v_durum NOT IN ('BEKLEMEDE','ONAYLI') THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Bu rezervasyon için check-in yapılamaz (iptal veya tamamlanmış).';
+        END IF;
+        IF EXISTS (SELECT 1 FROM Konaklama WHERE RezervasyonID = p_rezID) THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Bu rezervasyon için zaten check-in yapılmış.';
+        END IF;
+        IF CURDATE() < v_giris OR CURDATE() >= v_cikis THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Check-in yalnızca rezervasyon tarihleri içinde yapılabilir.';
+        END IF;
+
+        SELECT Durum INTO v_odaDurum FROM Oda WHERE OdaID = v_odaID FOR UPDATE;
+        IF v_odaDurum <> 'BOS' THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Oda şu an hazır değil (dolu, temizlikte veya bakımda).';
+        END IF;
+
+        -- Onaylanmamış rezervasyonla gelen misafir, check-in anında onaylanmış sayılır
+        IF v_durum = 'BEKLEMEDE' THEN
+            UPDATE Rezervasyon SET Durum = 'ONAYLI' WHERE RezervasyonID = p_rezID;
+        END IF;
+
+        INSERT INTO Konaklama (RezervasyonID, GercekGiris, GirisPersonelID)
+        VALUES (p_rezID, NOW(), p_personelID);       -- trigger -> oda DOLU
+        SET v_kid = LAST_INSERT_ID();
+    COMMIT;
+
+    SELECT k.KonaklamaID, k.RezervasyonID, k.GercekGiris, o.OdaNo, o.Durum AS OdaDurumu
+      FROM Konaklama k
+      JOIN Rezervasyon r ON r.RezervasyonID = k.RezervasyonID
+      JOIN Oda o ON o.OdaID = r.OdaID
+     WHERE k.KonaklamaID = v_kid;
+END $$
+
 DELIMITER ;
