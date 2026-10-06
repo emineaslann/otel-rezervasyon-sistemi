@@ -232,4 +232,39 @@ BEGIN
             NULL);
 END $$
 
+
+-- ---------------------------------------------------------------------
+-- Ek: aynı oda tipi için sezon aralıkları çakışamaz
+--   (aksi halde bir gecenin fiyatı belirsiz olurdu)
+--   Sezon bitiş tarihi DAHİL olduğu için <= kullanılır.
+-- ---------------------------------------------------------------------
+DROP TRIGGER IF EXISTS trg_SezonFiyati_Cakisma_BI $$
+CREATE TRIGGER trg_SezonFiyati_Cakisma_BI
+BEFORE INSERT ON SezonFiyati
+FOR EACH ROW
+BEGIN
+    IF EXISTS (SELECT 1 FROM SezonFiyati s
+                WHERE s.OdaTipiID = NEW.OdaTipiID
+                  AND s.BaslangicTarihi <= NEW.BitisTarihi
+                  AND NEW.BaslangicTarihi <= s.BitisTarihi) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Bu oda tipi için seçilen tarihlerle çakışan bir sezon fiyatı zaten var.';
+    END IF;
+END $$
+
+DROP TRIGGER IF EXISTS trg_SezonFiyati_Cakisma_BU $$
+CREATE TRIGGER trg_SezonFiyati_Cakisma_BU
+BEFORE UPDATE ON SezonFiyati
+FOR EACH ROW
+BEGIN
+    IF EXISTS (SELECT 1 FROM SezonFiyati s
+                WHERE s.OdaTipiID = NEW.OdaTipiID
+                  AND s.SezonFiyatiID <> NEW.SezonFiyatiID
+                  AND s.BaslangicTarihi <= NEW.BitisTarihi
+                  AND NEW.BaslangicTarihi <= s.BitisTarihi) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Bu oda tipi için seçilen tarihlerle çakışan bir sezon fiyatı zaten var.';
+    END IF;
+END $$
+
 DELIMITER ;
