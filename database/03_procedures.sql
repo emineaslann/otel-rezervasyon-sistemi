@@ -446,4 +446,138 @@ BEGIN
      WHERE k.KonaklamaID = v_kid;
 END $$
 
+
+-- =====================================================================
+-- (3) sp_AylikDolulukGelirRaporu
+--     Doluluk = satılan oda-gece / (oda sayısı x ayın gün sayısı)
+--     Sonuç 1: özet   Sonuç 2: oda tipi kırılımı   Sonuç 3: günlük doluluk
+-- =====================================================================
+DROP PROCEDURE IF EXISTS sp_AylikDolulukGelirRaporu $$
+CREATE PROCEDURE sp_AylikDolulukGelirRaporu(IN p_yil SMALLINT, IN p_ay TINYINT)
+BEGIN
+    DECLARE v_bas       DATE;
+    DECLARE v_son       DATE;          -- ayın son gününden SONRAKİ gün (hariç)
+    DECLARE v_gun       INT;
+    DECLARE v_odaSayisi INT;
+    DECLARE v_satilan   INT;
+    DECLARE v_odaGelir  DECIMAL(14,2);
+
+    IF p_ay NOT BETWEEN 1 AND 12 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ay 1 ile 12 arasında olmalı.';
+    END IF;
+
+    SET v_bas = MAKEDATE(p_yil, 1) + INTERVAL (p_ay - 1) MONTH;
+    SET v_son = v_bas + INTERVAL 1 MONTH;
+    SET v_gun = DATEDIFF(v_son, v_bas);
+    SELECT COUNT(*) INTO v_odaSayisi FROM Oda;
+
+    -- ayın her gecesi için dolu odaların listesi (geçici tablo)
+    DROP TEMPORARY TABLE IF EXISTS tmp_doluGece;
+    CREATE TEMPORARY TABLE tmp_doluGece (
+        Gece DATE, OdaID INT UNSIGNED, OdaTipiID INT UNSIGNED, Fiyat DECIMAL(10,2),
+        INDEX (Gece), INDEX (OdaTipiID)
+    );
+
+    INSERT INTO tmp_doluGece (Gece, OdaID, OdaTipiID, Fiyat)
+    WITH RECURSIVE gunler (Gece) AS (
+        SELECT v_bas
+        UNION ALL
+        SELECT Gece + INTERVAL 1 DAY FROM gunler WHERE Gece + INTERVAL 1 DAY < v_son
+    )
+    SELECT g.Gece, r.OdaID, o.OdaTipiID, fn_GecelikFiyat(o.OdaTipiID, g.Gece)
+      FROM gunler g
+      JOIN Rezervasyon r ON r.GirisTarihi <= g.Gece AND g.Gece < r.CikisTarihi
+      JOIN Oda o         ON o.OdaID = r.OdaID
+     WHERE r.Durum IN ('ONAYLI','TAMAMLANDI');
+
+    -- MySQL geçici tabloyu tek sorguda iki kez açamadığı için önce değişkenlere al
+    SELECT COUNT(*), COALESCE(SUM(Fiyat), 0) INTO v_satilan, v_odaGelir FROM tmp_doluGece;
+
+    -- 1) özet
+    SELECT p_yil AS Yil, p_ay AS Ay, v_odaSayisi AS OdaSayisi, v_gun AS GunSayisi,
+           v_odaSayisi * v_gun AS KapasiteOdaGece,
+           v_satilan AS SatilanOdaGece,
+           ROUND(100 * v_satilan / NULLIF(v_odaSayisi * v_gun, 0), 2) AS DolulukYuzde,
+           v_odaGelir AS OdaGeliri,
+           (SELECT COALESCE(SUM(kh.Adet * kh.BirimFiyat), 0) FROM KonaklamaHizmeti kh
+             WHERE kh.Tarih >= v_bas AND kh.Tarih < v_son) AS HizmetGeliri,
+           (SELECT COALESCE(SUM(od.Tutar), 0) FROM Odeme od
+             WHERE od.OdemeTarihi >= v_bas AND od.OdemeTarihi < v_son) AS Tahsilat,
+           (SELECT COUNT(*) FROM Rezervasyon r
+             WHERE r.OlusturmaTarihi >= v_bas AND r.OlusturmaTarihi < v_son) AS YeniRezervasyon,
+           (SELECT COUNT(*) FROM Rezervasyon r
+             WHERE r.Durum = 'IPTAL' AND r.GirisTarihi >= v_bas AND r.GirisTarihi < v_son) AS IptalSayisi,
+           ROUND(v_odaGelir / NULLIF(v_satilan, 0), 2)           AS ADR,
+           ROUND(v_odaGelir / NULLIF(v_odaSayisi * v_gun, 0), 2) AS RevPAR;
+
+    -- 2) oda tipi kırılımı
+    SELECT ot.OdaTipiID, ot.TipAdi,
+           COUNT(DISTINCT o.OdaID) AS OdaSayisi,
+           COALESCE(d.SatilanGece, 0) AS SatilanOdaGece,
+           ROUND(100 * COALESCE(d.SatilanGece, 0) / NULLIF(COUNT(DISTINCT o.OdaID) * v_gun, 0), 2) AS DolulukYuzde,
+           COALESCE(d.Gelir, 0) AS OdaGeliri
+      FROM OdaTipi ot
+      LEFT JOIN Oda o ON o.OdaTipiID = ot.OdaTipiID
+      LEFT JOIN (SELECT OdaTipiID, COUNT(*) AS SatilanGece, SUM(Fiyat) AS Gelir
+                   FROM tmp_doluGece GROUP BY OdaTipiID) d ON d.OdaTipiID = ot.OdaTipiID
+     GROUP BY ot.OdaTipiID, ot.TipAdi, d.SatilanGece, d.Gelir
+     ORDER BY ot.OdaTipiID;
+
+    -- 3) günlük doluluk (grafik için)
+    WITH RECURSIVE gunler (Gece) AS (
+        SELECT v_bas
+        UNION ALL
+        SELECT Gece + INTERVAL 1 DAY FROM gunler WHERE Gece + INTERVAL 1 DAY < v_son
+    )
+    SELECT g.Gece,
+           COUNT(t.OdaID) AS DoluOda,
+           ROUND(100 * COUNT(t.OdaID) / NULLIF(v_odaSayisi, 0), 2) AS DolulukYuzde,
+           COALESCE(SUM(t.Fiyat), 0) AS OdaGeliri
+      FROM gunler g
+      LEFT JOIN tmp_doluGece t ON t.Gece = g.Gece
+     GROUP BY g.Gece
+     ORDER BY g.Gece;
+
+    DROP TEMPORARY TABLE IF EXISTS tmp_doluGece;
+END $$
+
+-- ---------------------------------------------------------------------
+-- sp_YillikGelirOzeti: 12 ayın tahsilatı ve doluluğu (yıllık grafik için)
+-- ---------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_YillikGelirOzeti $$
+CREATE PROCEDURE sp_YillikGelirOzeti(IN p_yil SMALLINT)
+BEGIN
+    DECLARE v_odaSayisi INT;
+    SELECT COUNT(*) INTO v_odaSayisi FROM Oda;
+
+    WITH RECURSIVE aylar (Ay) AS (
+        SELECT 1 UNION ALL SELECT Ay + 1 FROM aylar WHERE Ay < 12
+    ),
+    sinir AS (
+        SELECT Ay,
+               MAKEDATE(p_yil, 1) + INTERVAL (Ay - 1) MONTH AS Bas,
+               MAKEDATE(p_yil, 1) + INTERVAL Ay MONTH       AS Son
+          FROM aylar
+    ),
+    satis AS (
+        SELECT s.Ay,
+               COALESCE(SUM(DATEDIFF(LEAST(r.CikisTarihi, s.Son), GREATEST(r.GirisTarihi, s.Bas))), 0) AS Gece
+          FROM sinir s
+          LEFT JOIN Rezervasyon r
+                 ON r.Durum IN ('ONAYLI','TAMAMLANDI')
+                AND r.GirisTarihi < s.Son AND s.Bas < r.CikisTarihi
+         GROUP BY s.Ay
+    )
+    SELECT s.Ay,
+           (SELECT COALESCE(SUM(od.Tutar), 0) FROM Odeme od
+             WHERE od.OdemeTarihi >= s.Bas AND od.OdemeTarihi < s.Son) AS Tahsilat,
+           (SELECT COALESCE(SUM(kh.Adet * kh.BirimFiyat), 0) FROM KonaklamaHizmeti kh
+             WHERE kh.Tarih >= s.Bas AND kh.Tarih < s.Son) AS HizmetGeliri,
+           st.Gece AS SatilanOdaGece,
+           ROUND(100 * st.Gece / NULLIF(v_odaSayisi * DATEDIFF(s.Son, s.Bas), 0), 2) AS DolulukYuzde
+      FROM sinir s
+      JOIN satis st ON st.Ay = s.Ay
+     ORDER BY s.Ay;
+END $$
+
 DELIMITER ;
