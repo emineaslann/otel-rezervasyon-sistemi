@@ -129,6 +129,216 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "2 - Herkese Açık",
+			"item": [
+				{
+					"name": "Oda Tipleri",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Token olmadan erişildi (200)\", () => pm.response.to.have.status(200));\r",
+									"pm.test(\"4 oda tipi var\", () => pm.expect(pm.response.json().length).to.eql(4));"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/oda-tipleri",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"oda-tipleri"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Boş Oda Arama",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Tarihleri bugüne göre hesapla: hangi gün çalıştırılırsa çalıştırılsın geçerli olsun\r",
+									"const tarih = (gun) => {\r",
+									"    const d = new Date();\r",
+									"    d.setDate(d.getDate() + gun);\r",
+									"    return d.toISOString().slice(0, 10);   // 2026-10-29 biçimi\r",
+									"};\r",
+									"pm.variables.set(\"giris\", tarih(20));\r",
+									"pm.variables.set(\"cikis\", tarih(23));"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const odalar = pm.response.json();\r",
+									"\r",
+									"pm.test(\"Prosedür çalıştı (200)\", () => pm.response.to.have.status(200));\r",
+									"pm.test(\"Boş oda bulundu\", () => pm.expect(odalar.length).to.be.above(0));\r",
+									"pm.test(\"Her odada 3 gece ve toplam fiyat var\", () => {\r",
+									"    odalar.forEach(o => {\r",
+									"        pm.expect(o.geceSayisi).to.eql(3);\r",
+									"        pm.expect(o.toplamFiyat).to.be.above(0);\r",
+									"    });\r",
+									"});\r",
+									"pm.test(\"Kapasite filtresi çalıştı (en az 2 kişilik)\", () => {\r",
+									"    odalar.forEach(o => pm.expect(o.kapasite).to.be.at.least(2));\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/odalar/bos?giris={{giris}}&cikis={{cikis}}&kisi=2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"odalar",
+								"bos"
+							],
+							"query": [
+								{
+									"key": "giris",
+									"value": "{{giris}}"
+								},
+								{
+									"key": "cikis",
+									"value": "{{cikis}}"
+								},
+								{
+									"key": "kisi",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Ek Hizmetler",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ek hizmetler listelendi (200)\", () => pm.response.to.have.status(200));\r",
+									"pm.test(\"Sadece aktif hizmetler\", () =>\r",
+									"    pm.response.json().forEach(h => pm.expect(h.aktif).to.be.true));"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/ek-hizmetler",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"ek-hizmetler"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Boş Oda Arama - Ters Tarih",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ters tarih reddedildi (400)\", () => pm.response.to.have.status(400));\r",
+									"pm.test(\"Anlaşılır mesaj\", () =>\r",
+									"    pm.expect(pm.response.json().mesaj).to.include(\"Çıkış tarihi\"));"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/odalar/bos?giris=2030-05-10&cikis=2030-05-05",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"odalar",
+								"bos"
+							],
+							"query": [
+								{
+									"key": "giris",
+									"value": "2030-05-10"
+								},
+								{
+									"key": "cikis",
+									"value": "2030-05-05"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"auth": {
+				"type": "noauth"
+			},
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
 		}
 	],
 	"auth": {

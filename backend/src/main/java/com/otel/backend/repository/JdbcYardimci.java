@@ -81,9 +81,12 @@ public class JdbcYardimci {
     }
 
     /** OdaNo -> odaNo, GeceSayisi -> geceSayisi, ADR -> adr */
-    private static String camelCase(String ad) {
+        private static String camelCase(String ad) {
         if (ad == null || ad.isEmpty()) return ad;
         if (ad.equals(ad.toUpperCase(Locale.ROOT))) return ad.toLowerCase(Locale.ROOT);
-        return Character.toLowerCase(ad.charAt(0)) + ad.substring(1);
+        String sonuc = Character.toLowerCase(ad.charAt(0)) + ad.substring(1);
+        // OdaID -> odaId, MisafirID -> misafirId (DTO'lardaki yazımla aynı olsun)
+        if (sonuc.endsWith("ID")) sonuc = sonuc.substring(0, sonuc.length() - 2) + "Id";
+        return sonuc;
     }
 }
