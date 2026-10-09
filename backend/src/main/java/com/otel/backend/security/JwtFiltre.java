@@ -39,12 +39,12 @@ public class JwtFiltre extends OncePerRequestFilter {
             String token = baslik.substring(7);
             try {
                 Claims c = jwtServisi.dogrula(token);
-                OturumKullanicisi kullanici = new OturumKullanicisi(
+                                OturumKullanicisi kullanici = new OturumKullanicisi(
                         Integer.valueOf(c.getSubject()),
                         c.get("kullaniciAdi", String.class),
                         Rol.valueOf(c.get("rol", String.class)),
-                        c.get("misafirId", Integer.class),
-                        c.get("personelId", Integer.class));
+                        tamSayi(c, "misafirId"),
+                        tamSayi(c, "personelId"));
 
                 // Spring Security rolleri "ROLE_" önekiyle bekler: ROLE_YONETICI
                 var yetkiler = List.of(new SimpleGrantedAuthority("ROLE_" + kullanici.rol().name()));
@@ -58,5 +58,11 @@ public class JwtFiltre extends OncePerRequestFilter {
             }
         }
         zincir.doFilter(istek, cevap);
+    }
+    
+    /** JSON sayıları ondalıklı gelebilir (1.0); tam sayıya çevirir. */
+    private static Integer tamSayi(Claims c, String ad) {
+        Object deger = c.get(ad);
+        return (deger instanceof Number sayi) ? sayi.intValue() : null;
     }
 }
