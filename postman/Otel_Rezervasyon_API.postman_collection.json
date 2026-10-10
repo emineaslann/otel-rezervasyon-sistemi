@@ -1,388 +1,718 @@
 {
-	"info": {
-		"_postman_id": "d9bfe682-54ce-4c0c-ac98-b5e9230cdc56",
-		"name": "Otel Rezervasyon API",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "40143334"
-	},
-	"item": [
-		{
-			"name": "1 - Kimlik Doğrulama",
-			"item": [
-				{
-					"name": "Giriş - Yönetici",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Giriş başarılı (200)\", () => pm.response.to.have.status(200));\r",
-									"\r",
-									"const cevap = pm.response.json();\r",
-									"pm.collectionVariables.set(\"token\", cevap.token);\r",
-									"\r",
-									"pm.test(\"Rol YONETICI\", () => pm.expect(cevap.kullanici.rol).to.eql(\"YONETICI\"));"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n  \"kullaniciAdi\": \"yonetici\",\r\n  \"sifre\": \"Yonetici123!\"\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/auth/giris",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"giris"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Ben Kimim",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Token kabul edildi (200)\", () => pm.response.to.have.status(200));\r",
-									"pm.test(\"Doğru kullanıcı\", () => pm.expect(pm.response.json().kullaniciAdi).to.eql(\"yonetici\"));"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/auth/ben",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"ben"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Giriş - Yanlış Şifre",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Yanlış şifre reddedildi (401)\", () => pm.response.to.have.status(401));\r",
-									"pm.test(\"Türkçe hata mesajı\", () =>\r",
-									"    pm.expect(pm.response.json().mesaj).to.eql(\"Kullanıcı adı veya şifre hatalı.\"));"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n  \"kullaniciAdi\": \"yonetici\",\r\n  \"sifre\": \"yanlis\"\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/auth/giris",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"giris"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "2 - Herkese Açık",
-			"item": [
-				{
-					"name": "Oda Tipleri",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Token olmadan erişildi (200)\", () => pm.response.to.have.status(200));\r",
-									"pm.test(\"4 oda tipi var\", () => pm.expect(pm.response.json().length).to.eql(4));"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/oda-tipleri",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"oda-tipleri"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Boş Oda Arama",
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"exec": [
-									"// Tarihleri bugüne göre hesapla: hangi gün çalıştırılırsa çalıştırılsın geçerli olsun\r",
-									"const tarih = (gun) => {\r",
-									"    const d = new Date();\r",
-									"    d.setDate(d.getDate() + gun);\r",
-									"    return d.toISOString().slice(0, 10);   // 2026-10-29 biçimi\r",
-									"};\r",
-									"pm.variables.set(\"giris\", tarih(20));\r",
-									"pm.variables.set(\"cikis\", tarih(23));"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"const odalar = pm.response.json();\r",
-									"\r",
-									"pm.test(\"Prosedür çalıştı (200)\", () => pm.response.to.have.status(200));\r",
-									"pm.test(\"Boş oda bulundu\", () => pm.expect(odalar.length).to.be.above(0));\r",
-									"pm.test(\"Her odada 3 gece ve toplam fiyat var\", () => {\r",
-									"    odalar.forEach(o => {\r",
-									"        pm.expect(o.geceSayisi).to.eql(3);\r",
-									"        pm.expect(o.toplamFiyat).to.be.above(0);\r",
-									"    });\r",
-									"});\r",
-									"pm.test(\"Kapasite filtresi çalıştı (en az 2 kişilik)\", () => {\r",
-									"    odalar.forEach(o => pm.expect(o.kapasite).to.be.at.least(2));\r",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/odalar/bos?giris={{giris}}&cikis={{cikis}}&kisi=2",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"odalar",
-								"bos"
-							],
-							"query": [
-								{
-									"key": "giris",
-									"value": "{{giris}}"
-								},
-								{
-									"key": "cikis",
-									"value": "{{cikis}}"
-								},
-								{
-									"key": "kisi",
-									"value": "2"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Ek Hizmetler",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Ek hizmetler listelendi (200)\", () => pm.response.to.have.status(200));\r",
-									"pm.test(\"Sadece aktif hizmetler\", () =>\r",
-									"    pm.response.json().forEach(h => pm.expect(h.aktif).to.be.true));"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/ek-hizmetler",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"ek-hizmetler"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Boş Oda Arama - Ters Tarih",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Ters tarih reddedildi (400)\", () => pm.response.to.have.status(400));\r",
-									"pm.test(\"Anlaşılır mesaj\", () =>\r",
-									"    pm.expect(pm.response.json().mesaj).to.include(\"Çıkış tarihi\"));"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/odalar/bos?giris=2030-05-10&cikis=2030-05-05",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"odalar",
-								"bos"
-							],
-							"query": [
-								{
-									"key": "giris",
-									"value": "2030-05-10"
-								},
-								{
-									"key": "cikis",
-									"value": "2030-05-05"
-								}
-							]
-						}
-					},
-					"response": []
-				}
-			],
-			"auth": {
-				"type": "noauth"
-			},
-			"event": [
-				{
-					"listen": "prerequest",
-					"script": {
-						"type": "text/javascript",
-						"packages": {},
-						"exec": [
-							""
-						]
-					}
-				},
-				{
-					"listen": "test",
-					"script": {
-						"type": "text/javascript",
-						"packages": {},
-						"exec": [
-							""
-						]
-					}
-				}
-			]
-		}
-	],
-	"auth": {
-		"type": "bearer",
-		"bearer": [
-			{
-				"key": "token",
-				"value": "{{token}}",
-				"type": "string"
-			}
-		]
-	},
-	"event": [
-		{
-			"listen": "prerequest",
-			"script": {
-				"type": "text/javascript",
-				"packages": {},
-				"exec": [
-					""
-				]
-			}
-		},
-		{
-			"listen": "test",
-			"script": {
-				"type": "text/javascript",
-				"packages": {},
-				"exec": [
-					""
-				]
-			}
-		}
-	],
-	"variable": [
-		{
-			"key": "baseUrl",
-			"value": "http://localhost:8080",
-			"type": "string"
-		},
-		{
-			"key": "token",
-			"value": "",
-			"type": "string"
-		}
-	]
+  "info": {
+    "_postman_id": "d9bfe682-54ce-4c0c-ac98-b5e9230cdc56",
+    "name": "Otel Rezervasyon API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "40143334"
+  },
+  "item": [
+    {
+      "name": "1 - Kimlik Doğrulama",
+      "item": [
+        {
+          "name": "Giriş - Yönetici",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Giriş başarılı (200)\", () => pm.response.to.have.status(200));\r",
+                  "\r",
+                  "const cevap = pm.response.json();\r",
+                  "pm.collectionVariables.set(\"token\", cevap.token);\r",
+                  "\r",
+                  "pm.test(\"Rol YONETICI\", () => pm.expect(cevap.kullanici.rol).to.eql(\"YONETICI\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"kullaniciAdi\": \"yonetici\",\r\n  \"sifre\": \"Yonetici123!\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/giris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "giris"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ben Kimim",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Token kabul edildi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Doğru kullanıcı\", () => pm.expect(pm.response.json().kullaniciAdi).to.eql(\"yonetici\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/ben",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "ben"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Giriş - Yanlış Şifre",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Yanlış şifre reddedildi (401)\", () => pm.response.to.have.status(401));\r",
+                  "pm.test(\"Türkçe hata mesajı\", () =>\r",
+                  "    pm.expect(pm.response.json().mesaj).to.eql(\"Kullanıcı adı veya şifre hatalı.\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"kullaniciAdi\": \"yonetici\",\r\n  \"sifre\": \"yanlis\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/giris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "giris"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2 - Herkese Açık",
+      "item": [
+        {
+          "name": "Oda Tipleri",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Token olmadan erişildi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"4 oda tipi var\", () => pm.expect(pm.response.json().length).to.eql(4));"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/oda-tipleri",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "oda-tipleri"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Boş Oda Arama",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Tarihleri bugüne göre hesapla: hangi gün çalıştırılırsa çalıştırılsın geçerli olsun\r",
+                  "const tarih = (gun) => {\r",
+                  "    const d = new Date();\r",
+                  "    d.setDate(d.getDate() + gun);\r",
+                  "    return d.toISOString().slice(0, 10);   // 2026-10-29 biçimi\r",
+                  "};\r",
+                  "pm.variables.set(\"giris\", tarih(20));\r",
+                  "pm.variables.set(\"cikis\", tarih(23));"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const odalar = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Prosedür çalıştı (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Boş oda bulundu\", () => pm.expect(odalar.length).to.be.above(0));\r",
+                  "pm.test(\"Her odada 3 gece ve toplam fiyat var\", () => {\r",
+                  "    odalar.forEach(o => {\r",
+                  "        pm.expect(o.geceSayisi).to.eql(3);\r",
+                  "        pm.expect(o.toplamFiyat).to.be.above(0);\r",
+                  "    });\r",
+                  "});\r",
+                  "pm.test(\"Kapasite filtresi çalıştı (en az 2 kişilik)\", () => {\r",
+                  "    odalar.forEach(o => pm.expect(o.kapasite).to.be.at.least(2));\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/odalar/bos?giris={{giris}}&cikis={{cikis}}&kisi=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "odalar",
+                "bos"
+              ],
+              "query": [
+                {
+                  "key": "giris",
+                  "value": "{{giris}}"
+                },
+                {
+                  "key": "cikis",
+                  "value": "{{cikis}}"
+                },
+                {
+                  "key": "kisi",
+                  "value": "2"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ek Hizmetler",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Ek hizmetler listelendi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Sadece aktif hizmetler\", () =>\r",
+                  "    pm.response.json().forEach(h => pm.expect(h.aktif).to.be.true));"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ek-hizmetler",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ek-hizmetler"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Boş Oda Arama - Ters Tarih",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Ters tarih reddedildi (400)\", () => pm.response.to.have.status(400));\r",
+                  "pm.test(\"Anlaşılır mesaj\", () =>\r",
+                  "    pm.expect(pm.response.json().mesaj).to.include(\"Çıkış tarihi\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/odalar/bos?giris=2030-05-10&cikis=2030-05-05",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "odalar",
+                "bos"
+              ],
+              "query": [
+                {
+                  "key": "giris",
+                  "value": "2030-05-10"
+                },
+                {
+                  "key": "cikis",
+                  "value": "2030-05-05"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "auth": {
+        "type": "noauth"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "exec": [
+              ""
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "exec": [
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 - Misafir İşlemleri",
+      "item": [
+        {
+          "name": "Giriş - Misafir",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Misafir girişi başarılı (200)\", () => pm.response.to.have.status(200));\r",
+                  "\r",
+                  "const cevap = pm.response.json();\r",
+                  "pm.collectionVariables.set(\"token\", cevap.token);\r",
+                  "\r",
+                  "pm.test(\"Rol MISAFIR\", () => pm.expect(cevap.kullanici.rol).to.eql(\"MISAFIR\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"kullaniciAdi\": \"ayse.yilmaz@example.com\",\r\n  \"sifre\": \"Misafir123!\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/giris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "giris"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rezervasyon Oluştur",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Bugüne göre tarihler\r",
+                  "const tarih = (gun) => {\r",
+                  "    const d = new Date();\r",
+                  "    d.setDate(d.getDate() + gun);\r",
+                  "    return d.toISOString().slice(0, 10);\r",
+                  "};\r",
+                  "const giris = tarih(40), cikis = tarih(43);\r",
+                  "pm.collectionVariables.set(\"rezGiris\", giris);\r",
+                  "pm.collectionVariables.set(\"rezCikis\", cikis);\r",
+                  "\r",
+                  "// Önce boş oda ara, ilk bulunan odayı kullan\r",
+                  "const adres = pm.collectionVariables.get(\"baseUrl\") +\r",
+                  "    `/api/odalar/bos?giris=${giris}&cikis=${cikis}&kisi=2`;\r",
+                  "pm.sendRequest(adres, (hata, cevap) => {\r",
+                  "    pm.collectionVariables.set(\"rezOdaId\", cevap.json()[0].odaId);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Rezervasyon oluşturuldu (201)\", () => pm.response.to.have.status(201));\r",
+                  "\r",
+                  "const rez = pm.response.json();\r",
+                  "pm.collectionVariables.set(\"rezId\", rez.rezervasyonId);\r",
+                  "\r",
+                  "pm.test(\"Misafir rezervasyonu onay bekliyor\", () => pm.expect(rez.durum).to.eql(\"BEKLEMEDE\"));\r",
+                  "pm.test(\"Fiyat hesaplandı\", () => pm.expect(rez.toplamFiyat).to.be.above(0));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"odaId\": {{rezOdaId}},\r\n  \"girisTarihi\": \"{{rezGiris}}\",\r\n  \"cikisTarihi\": \"{{rezCikis}}\",\r\n  \"kisiSayisi\": 2\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rezervasyonlar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rezervasyonlar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rezervasyon - Çakışma Denemesi",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Çakışma reddedildi (409)\", () => pm.response.to.have.status(409));\r",
+                  "pm.test(\"Trigger mesajı kullanıcıya ulaştı\", () =>\r",
+                  "    pm.expect(pm.response.json().mesaj).to.include(\"çakışıyor\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"odaId\": {{rezOdaId}},\r\n  \"girisTarihi\": \"{{rezGiris}}\",\r\n  \"cikisTarihi\": \"{{rezCikis}}\",\r\n  \"kisiSayisi\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rezervasyonlar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rezervasyonlar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rezervasyonlarım",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const liste = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Liste geldi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Yeni rezervasyon listede\", () => {\r",
+                  "    const rezId = Number(pm.collectionVariables.get(\"rezId\"));\r",
+                  "    pm.expect(liste.map(r => r.rezervasyonId)).to.include(rezId);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rezervasyonlar/benim",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rezervasyonlar",
+                "benim"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rezervasyon İptal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"İptal edildi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Durum IPTAL\", () => pm.expect(pm.response.json().durum).to.eql(\"IPTAL\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rezervasyonlar/{{rezId}}/iptal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rezervasyonlar",
+                "{{rezId}}",
+                "iptal"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Geçmiş Konaklamalarım",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const liste = pm.response.json();\r",
+                  "pm.test(\"Liste geldi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Hepsi check-out yapılmış konaklamalar\", () =>\r",
+                  "    liste.forEach(k => pm.expect(k.gercekCikis).to.not.be.null));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rezervasyonlar/gecmis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rezervasyonlar",
+                "gecmis"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Yetki Testi - Misafir Yönetim Ekranına Erişemez",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Misafir yönetim raporuna erişemez (403)\", () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/raporlar/aylik?yil=2026&ay=8",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "raporlar",
+                "aylik"
+              ],
+              "query": [
+                {
+                  "key": "yil",
+                  "value": "2026"
+                },
+                {
+                  "key": "ay",
+                  "value": "8"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rezGiris",
+      "value": ""
+    },
+    {
+      "key": "rezCikis",
+      "value": ""
+    },
+    {
+      "key": "rezOdaId",
+      "value": ""
+    },
+    {
+      "key": "rezId",
+      "value": ""
+    }
+  ]
 }
