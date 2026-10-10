@@ -31,6 +31,14 @@ public class GorunumRepository {
         return db.sorgu("SELECT * FROM vw_MisafirRezervasyonlari WHERE MisafirID = ? ORDER BY GirisTarihi DESC",
                 misafirId);
     }
+    
+    /** Misafirin tamamlanmış (check-out yapılmış) konaklamaları. */
+    public List<Map<String, Object>> misafirGecmisi(int misafirId) {
+        return db.sorgu("""
+                SELECT * FROM vw_MisafirRezervasyonlari
+                 WHERE MisafirID = ? AND GercekCikis IS NOT NULL
+                 ORDER BY GercekCikis DESC""", misafirId);
+    }
 
     /** Tetikleyicilerin doldurduğu işlem günlüğü (en yeniler önce). */
     public List<Map<String, Object>> islemLog(int limit) {
