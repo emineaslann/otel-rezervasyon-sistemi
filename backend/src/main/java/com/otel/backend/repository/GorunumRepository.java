@@ -39,6 +39,17 @@ public class GorunumRepository {
                  WHERE MisafirID = ? AND GercekCikis IS NOT NULL
                  ORDER BY GercekCikis DESC""", misafirId);
     }
+    
+    /** Bir konaklamada alınan ödemeler (hesap dökümü için). */
+    public List<Map<String, Object>> konaklamaOdemeleri(int konaklamaId) {
+        return db.sorgu("""
+                SELECT od.OdemeID, od.Tutar, od.OdemeTuru, od.OdemeTarihi,
+                       CONCAT(p.Ad, ' ', p.Soyad) AS PersonelAdSoyad
+                  FROM Odeme od
+                  LEFT JOIN Personel p ON p.PersonelID = od.PersonelID
+                 WHERE od.KonaklamaID = ?
+                 ORDER BY od.OdemeTarihi""", konaklamaId);
+    }
 
     /** Tetikleyicilerin doldurduğu işlem günlüğü (en yeniler önce). */
     public List<Map<String, Object>> islemLog(int limit) {

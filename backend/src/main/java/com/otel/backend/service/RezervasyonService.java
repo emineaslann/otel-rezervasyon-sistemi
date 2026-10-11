@@ -64,4 +64,9 @@ public class RezervasyonService {
         Integer sahiplikKontrolu = ben.misafirMi() ? ben.misafirId() : null;
         return prosedurRepo.rezervasyonIptal(rezervasyonId, sahiplikKontrolu);
     }
+    
+    /** sp_RezervasyonOnayla: BEKLEMEDE -> ONAYLI */
+    public Map<String, Object> onayla(int rezervasyonId) {
+        return prosedurRepo.rezervasyonOnayla(rezervasyonId);
+    }
 }

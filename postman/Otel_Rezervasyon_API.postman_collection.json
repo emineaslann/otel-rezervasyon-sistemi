@@ -653,6 +653,310 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "4 - Resepsiyon İşlemleri",
+      "item": [
+        {
+          "name": "Giriş - Resepsiyon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Resepsiyon girişi başarılı (200)\", () => pm.response.to.have.status(200));\r",
+                  "\r",
+                  "const cevap = pm.response.json();\r",
+                  "pm.collectionVariables.set(\"token\", cevap.token);\r",
+                  "\r",
+                  "pm.test(\"Rol RESEPSIYON\", () => pm.expect(cevap.kullanici.rol).to.eql(\"RESEPSIYON\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"kullaniciAdi\": \"resepsiyon\",\r\n  \"sifre\": \"Resepsiyon123!\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/giris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "giris"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Bugünün Giriş ve Çıkışları",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const liste = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"View çalıştı (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Bugün giriş yapacak misafir var\", () =>\r",
+                  "    pm.expect(liste.some(x => x.hareket === \"GIRIS\")).to.be.true);\r",
+                  "\r",
+                  "// Check-in bekleyen ve odası boş olan ilk misafiri sonraki adım için sakla\r",
+                  "const aday = liste.find(x => x.hareket === \"GIRIS\"\r",
+                  "                          && x.islemDurumu === \"BEKLIYOR\"\r",
+                  "                          && x.odaDurumu === \"BOS\");\r",
+                  "if (aday) {\r",
+                  "    pm.collectionVariables.set(\"checkinRezId\", aday.rezervasyonId);\r",
+                  "    console.log(\"Check-in yapılacak:\", aday.misafirAdSoyad, \"- Oda\", aday.odaNo);\r",
+                  "}\r",
+                  "pm.test(\"Check-in için uygun misafir bulundu\", () => pm.expect(aday).to.exist);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/resepsiyon/bugun",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resepsiyon",
+                "bugun"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check-in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Check-in yapıldı (201)\", () => pm.response.to.have.status(201));\r",
+                  "\r",
+                  "const k = pm.response.json();\r",
+                  "pm.collectionVariables.set(\"konaklamaId\", k.konaklamaId);\r",
+                  "\r",
+                  "pm.test(\"Trigger odayı DOLU yaptı\", () => pm.expect(k.odaDurumu).to.eql(\"DOLU\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"rezervasyonId\": {{checkinRezId}}\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resepsiyon/check-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resepsiyon",
+                "check-in"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Hesap Dökümü",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Prosedür çalıştı (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Dört bölüm var (geceler, hizmetler, özet, ödemeler)\", () => {\r",
+                  "    pm.expect(d).to.have.all.keys(\"geceler\", \"hizmetler\", \"ozet\", \"odemeler\");\r",
+                  "});\r",
+                  "pm.test(\"Oda ücreti = gece fiyatlarının toplamı\", () => {\r",
+                  "    const toplam = d.geceler.reduce((t, g) => t + g.fiyat, 0);\r",
+                  "    pm.expect(d.ozet.odaUcreti).to.eql(toplam);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/konaklamalar/{{konaklamaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "konaklamalar",
+                "{{konaklamaId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check-out - Yetersiz Ödeme (ROLLBACK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Check-out reddedildi (409)\", () => pm.response.to.have.status(409));\r",
+                  "pm.test(\"Mesaj işlemin geri alındığını söylüyor\", () =>\r",
+                  "    pm.expect(pm.response.json().mesaj).to.include(\"geri alındı\"));\r",
+                  "\r",
+                  "// --- ROLLBACK kanıtı: hiçbir şeyin değişmediğini kontrol et ---\r",
+                  "const adres = pm.collectionVariables.get(\"baseUrl\");\r",
+                  "const kid = Number(pm.collectionVariables.get(\"konaklamaId\"));\r",
+                  "const yetki = { Authorization: \"Bearer \" + pm.collectionVariables.get(\"token\") };\r",
+                  "\r",
+                  "pm.sendRequest({ url: adres + \"/api/resepsiyon/oda-durumu\", header: yetki }, (h, cevap) => {\r",
+                  "    const oda = cevap.json().find(o => o.aktifKonaklamaId === kid);\r",
+                  "    pm.test(\"ROLLBACK: oda hâlâ DOLU ve konaklama açık\", () => {\r",
+                  "        pm.expect(oda).to.exist;\r",
+                  "        pm.expect(oda.durum).to.eql(\"DOLU\");\r",
+                  "    });\r",
+                  "});\r",
+                  "\r",
+                  "pm.sendRequest({ url: adres + \"/api/konaklamalar/\" + kid, header: yetki }, (h, cevap) => {\r",
+                  "    pm.test(\"ROLLBACK: hiç ödeme kaydedilmedi\", () =>\r",
+                  "        pm.expect(cevap.json().odemeler.length).to.eql(0));\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"konaklamaId\": {{konaklamaId}},\r\n  \"odemeTuru\": \"KART\",\r\n  \"tutar\": 100\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resepsiyon/check-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resepsiyon",
+                "check-out"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check-out - Geçersiz Ödeme Türü (ROLLBACK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Geçersiz ödeme türü reddedildi (400)\", () => pm.response.to.have.status(400));\r",
+                  "\r",
+                  "// --- ROLLBACK kanıtı: hiçbir şeyin değişmediğini kontrol et ---\r",
+                  "const adres = pm.collectionVariables.get(\"baseUrl\");\r",
+                  "const kid = Number(pm.collectionVariables.get(\"konaklamaId\"));\r",
+                  "const yetki = { Authorization: \"Bearer \" + pm.collectionVariables.get(\"token\") };\r",
+                  "\r",
+                  "pm.sendRequest({ url: adres + \"/api/resepsiyon/oda-durumu\", header: yetki }, (h, cevap) => {\r",
+                  "    const oda = cevap.json().find(o => o.aktifKonaklamaId === kid);\r",
+                  "    pm.test(\"ROLLBACK: oda hâlâ DOLU ve konaklama açık\", () => {\r",
+                  "        pm.expect(oda).to.exist;\r",
+                  "        pm.expect(oda.durum).to.eql(\"DOLU\");\r",
+                  "    });\r",
+                  "});\r",
+                  "\r",
+                  "pm.sendRequest({ url: adres + \"/api/konaklamalar/\" + kid, header: yetki }, (h, cevap) => {\r",
+                  "    pm.test(\"ROLLBACK: hiç ödeme kaydedilmedi\", () =>\r",
+                  "        pm.expect(cevap.json().odemeler.length).to.eql(0));\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"konaklamaId\": {{konaklamaId}},\r\n  \"odemeTuru\": \"CEK\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resepsiyon/check-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resepsiyon",
+                "check-out"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "auth": {
@@ -712,6 +1016,14 @@
     },
     {
       "key": "rezId",
+      "value": ""
+    },
+    {
+      "key": "checkinRezId",
+      "value": ""
+    },
+    {
+      "key": "konaklamaId",
       "value": ""
     }
   ]

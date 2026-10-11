@@ -46,4 +46,10 @@ public class RezervasyonController {
                                      @PathVariable int id) {
         return service.iptal(ben, id);
     }
+    
+    @PutMapping("/{id}/onayla")
+    @PreAuthorize("hasAnyRole('RESEPSIYON', 'YONETICI')")
+    public Map<String, Object> onayla(@PathVariable int id) {
+        return service.onayla(id);
+    }
 }
