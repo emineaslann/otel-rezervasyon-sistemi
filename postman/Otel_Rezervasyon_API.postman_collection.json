@@ -10,51 +10,6 @@
       "name": "1 - Kimlik Doğrulama",
       "item": [
         {
-          "name": "Giriş - Yönetici",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Giriş başarılı (200)\", () => pm.response.to.have.status(200));\r",
-                  "\r",
-                  "const cevap = pm.response.json();\r",
-                  "pm.collectionVariables.set(\"token\", cevap.token);\r",
-                  "\r",
-                  "pm.test(\"Rol YONETICI\", () => pm.expect(cevap.kullanici.rol).to.eql(\"YONETICI\"));"
-                ],
-                "type": "text/javascript",
-                "packages": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"kullaniciAdi\": \"yonetici\",\r\n  \"sifre\": \"Yonetici123!\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/auth/giris",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "auth",
-                "giris"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
           "name": "Ben Kimim",
           "event": [
             {
@@ -1333,6 +1288,540 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "5 - Yönetici İşlemleri",
+      "item": [
+        {
+          "name": "Giriş - Yönetici",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Giriş başarılı (200)\", () => pm.response.to.have.status(200));\r",
+                  "\r",
+                  "const cevap = pm.response.json();\r",
+                  "pm.collectionVariables.set(\"token\", cevap.token);\r",
+                  "\r",
+                  "pm.test(\"Rol YONETICI\", () => pm.expect(cevap.kullanici.rol).to.eql(\"YONETICI\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"kullaniciAdi\": \"yonetici\",\r\n  \"sifre\": \"Yonetici123!\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/giris",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "giris"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Oda Tipleri - Listele",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Liste geldi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"En az 4 oda tipi var\", () => pm.expect(pm.response.json().length).to.be.at.least(4));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/oda-tipleri",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "oda-tipleri"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Oda Tipleri - Ekle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const t = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Oda tipi eklendi (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.test(\"Numara verildi\", () => pm.expect(t.id).to.be.a(\"number\"));\r",
+                  "\r",
+                  "pm.collectionVariables.set(\"yeniOdaTipiId\", t.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"tipAdi\": \"Ekonomik {{$timestamp}}\",\r\n  \"kapasite\": 1,\r\n  \"aciklama\": \"Tek kişilik, 16 m², iç cephe\",\r\n  \"temelFiyat\": 1500\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/oda-tipleri",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "oda-tipleri"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Oda Tipleri - Güncelle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const t = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Güncellendi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Aynı kayıt güncellendi\", () =>\r",
+                  "    pm.expect(t.id).to.eql(Number(pm.collectionVariables.get(\"yeniOdaTipiId\"))));\r",
+                  "pm.test(\"Yeni fiyat 1750\", () => pm.expect(t.temelFiyat).to.eql(1750));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"tipAdi\": \"Ekonomik Plus {{$timestamp}}\",\r\n  \"kapasite\": 2,\r\n  \"aciklama\": \"İki kişilik, 18 m², yenilendi\",\r\n  \"temelFiyat\": 1750\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/oda-tipleri/{{yeniOdaTipiId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "oda-tipleri",
+                "{{yeniOdaTipiId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Oda Tipleri - Sil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Silindi (204)\", () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/oda-tipleri/{{yeniOdaTipiId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "oda-tipleri",
+                "{{yeniOdaTipiId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Oda Tipleri - Sil (Kullanımda, 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Kullanımdaki tip silinemez (409)\", () => pm.response.to.have.status(409));\r",
+                  "pm.test(\"Anlaşılır mesaj\", () =>\r",
+                  "    pm.expect(pm.response.json().mesaj).to.include(\"silinemez\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/oda-tipleri/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "oda-tipleri",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Odalar - Ekle",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set(\"yeniOdaNo\", \"T\" + String(Date.now()).slice(-6));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const o = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Oda eklendi (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.test(\"Yeni oda BOS başladı\", () => pm.expect(o.durum).to.eql(\"BOS\"));\r",
+                  "pm.test(\"Tip adı da geldi\", () => pm.expect(o.tipAdi).to.eql(\"Standart\"));\r",
+                  "\r",
+                  "pm.collectionVariables.set(\"yeniOdaId\", o.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"odaNo\": \"{{yeniOdaNo}}\",\r\n  \"kat\": 5,\r\n  \"odaTipiId\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/odalar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "odalar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Odalar - Aynı Numara (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Tekrar eden oda no reddedildi (409)\", () => pm.response.to.have.status(409));\r",
+                  "pm.test(\"Mesaj\", () => pm.expect(pm.response.json().mesaj).to.eql(\"Bu oda numarası zaten tanımlı.\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"odaNo\": \"101\",\r\n  \"kat\": 1,\r\n  \"odaTipiId\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/odalar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "odalar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Odalar - Sil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Silindi (204)\", () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/odalar/{{yeniOdaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "odalar",
+                "{{yeniOdaId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sezon Fiyatları - Listele (Deluxe)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const liste = pm.response.json();\r",
+                  "pm.test(\"Liste geldi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Hepsi Deluxe\", () => liste.forEach(s => pm.expect(s.tipAdi).to.eql(\"Deluxe\")));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/sezon-fiyatlari?odaTipiId=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "sezon-fiyatlari"
+              ],
+              "query": [
+                {
+                  "key": "odaTipiId",
+                  "value": "2"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sezon Fiyatları - Çakışan Sezon (Trigger 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Çakışan sezon reddedildi (409)\", () => pm.response.to.have.status(409));\r",
+                  "pm.test(\"Trigger mesajı\", () => pm.expect(pm.response.json().mesaj).to.include(\"çakışan bir sezon\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"odaTipiId\": 2,\r\n  \"sezonAdi\": \"Bayram 2027\",\r\n  \"baslangicTarihi\": \"2027-06-10\",\r\n  \"bitisTarihi\": \"2027-06-20\",\r\n  \"gecelikFiyat\": 6000\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/sezon-fiyatlari",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "sezon-fiyatlari"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sezon Fiyatları - Ekle (Boş Aralık)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Sezon eklendi (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.collectionVariables.set(\"yeniSezonId\", pm.response.json().id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"odaTipiId\": 2,\r\n  \"sezonAdi\": \"Kasım Kampanyası 2028\",\r\n  \"baslangicTarihi\": \"2028-11-01\",\r\n  \"bitisTarihi\": \"2028-11-30\",\r\n  \"gecelikFiyat\": 3200\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/sezon-fiyatlari",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "sezon-fiyatlari"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sezon Fiyatları - Sil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Silindi (204)\", () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/sezon-fiyatlari/{{yeniSezonId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "sezon-fiyatlari",
+                "{{yeniSezonId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "auth": {
@@ -1416,6 +1905,18 @@
     },
     {
       "key": "onayRezId",
+      "value": ""
+    },
+    {
+      "key": "yeniOdaTipiId",
+      "value": ""
+    },
+    {
+      "key": "yeniOdaId",
+      "value": ""
+    },
+    {
+      "key": "yeniSezonId",
       "value": ""
     }
   ]
