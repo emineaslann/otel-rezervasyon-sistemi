@@ -1092,6 +1092,76 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Temizlik Tamamla (Trigger → BOS)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const adres = pm.collectionVariables.get(\"baseUrl\");\r",
+                  "const yetki = { Authorization: \"Bearer \" + pm.collectionVariables.get(\"token\") };\r",
+                  "\r",
+                  "// 1) Temizlikteki ilk odayı bul (vw_OdaGuncelDurum)\r",
+                  "pm.sendRequest({ url: adres + \"/api/resepsiyon/oda-durumu\", header: yetki }, (h, cevap) => {\r",
+                  "    const oda = cevap.json().find(o => o.durum === \"TEMIZLIKTE\");\r",
+                  "    pm.collectionVariables.set(\"temizlikOdaId\", oda.odaId);\r",
+                  "    console.log(\"Temizlenecek oda:\", oda.odaNo);\r",
+                  "});\r",
+                  "\r",
+                  "// 2) Bir kat görevlisi seç\r",
+                  "pm.sendRequest({ url: adres + \"/api/resepsiyon/kat-gorevlileri\", header: yetki }, (h, cevap) => {\r",
+                  "    pm.collectionVariables.set(\"katGorevlisiId\", cevap.json()[0].personelId);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const t = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Temizlik kaydedildi (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.test(\"Trigger odayı BOS yaptı\", () => pm.expect(t.odaDurumu).to.eql(\"BOS\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"personelId\": {{katGorevlisiId}},\r\n  \"notlar\": \"Çarşaflar değişti, minibar dolduruldu\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resepsiyon/odalar/{{temizlikOdaId}}/temizlik",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resepsiyon",
+                "odalar",
+                "{{temizlikOdaId}}",
+                "temizlik"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }
@@ -1161,6 +1231,14 @@
     },
     {
       "key": "konaklamaId",
+      "value": ""
+    },
+    {
+      "key": "temizlikOdaId",
+      "value": ""
+    },
+    {
+      "key": "katGorevlisiId",
       "value": ""
     }
   ]

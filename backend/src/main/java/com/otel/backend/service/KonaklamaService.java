@@ -53,6 +53,7 @@ public class KonaklamaService {
     }
 
     @Transactional
+    @SuppressWarnings("unchecked")
     public Map<String, Object> odemeAl(OturumKullanicisi ben, int konaklamaId, OdemeIstegi istek) {
         Konaklama konaklama = acikKonaklama(konaklamaId);
 
