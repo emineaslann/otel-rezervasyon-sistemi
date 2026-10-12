@@ -955,6 +955,143 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Ek Hizmet Ekle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const h = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Hizmet eklendi (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.test(\"Tutar = adet × birim fiyat\", () =>\r",
+                  "    pm.expect(h.tutar).to.eql(h.adet * h.birimFiyat));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"ekHizmetId\": 1,\r\n  \"adet\": 2\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/konaklamalar/{{konaklamaId}}/hizmetler",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "konaklamalar",
+                "{{konaklamaId}}",
+                "hizmetler"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ara Ödeme",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const o = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Ödeme alındı (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.test(\"Kalan bakiye 9260\", () => pm.expect(o.kalanBakiye).to.eql(9260));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"tutar\": 2000,\r\n  \"odemeTuru\": \"KART\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/konaklamalar/{{konaklamaId}}/odemeler",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "konaklamalar",
+                "{{konaklamaId}}",
+                "odemeler"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check-out - Başarılı",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const c = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Check-out tamamlandı (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Kalan bakiye tahsil edildi\", () => pm.expect(c.alinanOdeme).to.eql(9260));\r",
+                  "pm.test(\"Trigger odayı TEMIZLIKTE yaptı\", () => pm.expect(c.odaDurumu).to.eql(\"TEMIZLIKTE\"));\r",
+                  "pm.test(\"Rezervasyon TAMAMLANDI\", () => pm.expect(c.rezervasyonDurumu).to.eql(\"TAMAMLANDI\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"konaklamaId\": {{konaklamaId}},\r\n  \"odemeTuru\": \"NAKIT\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resepsiyon/check-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resepsiyon",
+                "check-out"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }
