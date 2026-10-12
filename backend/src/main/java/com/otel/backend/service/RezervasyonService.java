@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import com.otel.backend.entity.RezervasyonDurum;
+import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor
@@ -68,5 +70,14 @@ public class RezervasyonService {
     /** sp_RezervasyonOnayla: BEKLEMEDE -> ONAYLI */
     public Map<String, Object> onayla(int rezervasyonId) {
         return prosedurRepo.rezervasyonOnayla(rezervasyonId);
+    }
+    
+    /** Resepsiyon/yönetici rezervasyon listesi (çok tablolu JOIN). */
+    public List<Map<String, Object>> ara(RezervasyonDurum durum, LocalDate baslangic, LocalDate bitis,
+                                         String q, int limit) {
+        if (limit < 1 || limit > 500) {
+            throw ApiHatasi.gecersiz("limit 1 ile 500 arasında olmalı.");
+        }
+        return gorunumRepo.rezervasyonAra(durum == null ? null : durum.name(), baslangic, bitis, q, limit);
     }
 }

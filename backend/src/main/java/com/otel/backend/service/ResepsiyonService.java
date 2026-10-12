@@ -14,6 +14,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.otel.backend.dto.MisafirIstegi;
+import com.otel.backend.entity.Misafir;
+import com.otel.backend.repository.MisafirRepository;
+import java.util.Locale;
+
 @Service
 @RequiredArgsConstructor
 public class ResepsiyonService {
@@ -21,6 +26,7 @@ public class ResepsiyonService {
     private final GorunumRepository gorunumRepo;
     private final ProsedurRepository prosedurRepo;
     private final KonaklamaRepository konaklamaRepo;
+    private final MisafirRepository misafirRepo;
 
     // ------------------------------------------------------------ listeler (view'lar)
 
@@ -55,6 +61,29 @@ public class ResepsiyonService {
         Map<String, Object> detay = new LinkedHashMap<>(prosedurRepo.konaklamaToplamTutar(konaklamaId));
         detay.put("odemeler", gorunumRepo.konaklamaOdemeleri(konaklamaId));
         return detay;
+    }
+        // ------------------------------------------------------------ misafirler
+
+    public List<Map<String, Object>> misafirAra(String q) {
+        return gorunumRepo.misafirAra(q);
+    }
+
+    /** Aynı e-posta veya kimlik no varsa veritabanındaki UNIQUE kısıtı 409 döndürür. */
+    public Map<String, Object> misafirEkle(MisafirIstegi istek) {
+        Misafir m = new Misafir();
+        m.setAd(istek.ad().trim());
+        m.setSoyad(istek.soyad().trim());
+        m.setKimlikNo(istek.kimlikNo().trim());
+        m.setEposta(istek.eposta().trim().toLowerCase(Locale.ROOT));
+        m.setTelefon(istek.telefon());
+        m.setDogumTarihi(istek.dogumTarihi());
+        misafirRepo.save(m);
+
+        Map<String, Object> cevap = new LinkedHashMap<>();
+        cevap.put("misafirId", m.getId());
+        cevap.put("adSoyad", m.getAd() + " " + m.getSoyad());
+        cevap.put("eposta", m.getEposta());
+        return cevap;
     }
 
     // ------------------------------------------------------------ yardımcı

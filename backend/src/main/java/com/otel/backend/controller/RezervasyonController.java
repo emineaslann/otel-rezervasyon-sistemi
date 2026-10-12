@@ -13,6 +13,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import com.otel.backend.entity.RezervasyonDurum;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
+
 @RestController
 @RequestMapping("/api/rezervasyonlar")
 @RequiredArgsConstructor
@@ -51,5 +55,17 @@ public class RezervasyonController {
     @PreAuthorize("hasAnyRole('RESEPSIYON', 'YONETICI')")
     public Map<String, Object> onayla(@PathVariable int id) {
         return service.onayla(id);
+    }
+    
+    /** Örnek: GET /api/rezervasyonlar?durum=BEKLEMEDE&q=Yılmaz */
+    @GetMapping
+    @PreAuthorize("hasAnyRole('RESEPSIYON', 'YONETICI')")
+    public List<Map<String, Object>> listele(
+            @RequestParam(required = false) RezervasyonDurum durum,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate baslangic,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bitis,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "100") int limit) {
+        return service.ara(durum, baslangic, bitis, q, limit);
     }
 }

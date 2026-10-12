@@ -16,6 +16,7 @@ import java.util.Map;
 import com.otel.backend.dto.OdaDurumIstegi;
 import com.otel.backend.dto.TemizlikIstegi;
 import com.otel.backend.service.OdaService;
+import com.otel.backend.dto.MisafirIstegi;
 
 /** /api/resepsiyon/** -> güvenlik ayarında RESEPSIYON ve YONETICI rollerine açık. */
 @RestController
@@ -73,5 +74,16 @@ public class ResepsiyonController {
     @PutMapping("/odalar/{id}/durum")
     public Map<String, Object> durum(@PathVariable int id, @Valid @RequestBody OdaDurumIstegi istek) {
         return odaService.durumDegistir(id, istek);
+    }
+    
+    @GetMapping("/misafirler")
+    public List<Map<String, Object>> misafirAra(@RequestParam(required = false) String q) {
+        return service.misafirAra(q);
+    }
+
+    @PostMapping("/misafirler")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, Object> misafirEkle(@Valid @RequestBody MisafirIstegi istek) {
+        return service.misafirEkle(istek);
     }
 }

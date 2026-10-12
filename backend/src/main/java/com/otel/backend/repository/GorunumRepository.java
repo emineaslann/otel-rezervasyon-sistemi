@@ -6,6 +6,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Map;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+
 /** Veritabanındaki görünümlerin (view) ve IslemLog'un okunması. */
 @Repository
 @RequiredArgsConstructor
@@ -49,6 +52,59 @@ public class GorunumRepository {
                   LEFT JOIN Personel p ON p.PersonelID = od.PersonelID
                  WHERE od.KonaklamaID = ?
                  ORDER BY od.OdemeTarihi""", konaklamaId);
+    }
+    
+    /** Resepsiyon misafir araması: ad, soyad, e-posta, telefon veya kimlik no. */
+    public List<Map<String, Object>> misafirAra(String q) {
+        String sql = """
+                SELECT m.MisafirID, m.Ad, m.Soyad, m.KimlikNo, m.Telefon, m.Eposta, m.DogumTarihi,
+                       (SELECT COUNT(*) FROM Rezervasyon r
+                         WHERE r.MisafirID = m.MisafirID AND r.Durum = 'TAMAMLANDI') AS KonaklamaSayisi
+                  FROM Misafir m""";
+        if (q == null || q.isBlank()) {
+            return db.sorgu(sql + " ORDER BY m.Soyad, m.Ad LIMIT 50");
+        }
+        String desen = "%" + q.trim() + "%";
+                return db.sorgu(sql + "\n" + """
+                 WHERE CONCAT(m.Ad, ' ', m.Soyad) LIKE ? OR m.Eposta LIKE ?
+                    OR m.Telefon LIKE ? OR m.KimlikNo LIKE ?
+                 ORDER BY m.Soyad, m.Ad LIMIT 50""", desen, desen, desen, desen);
+    }
+
+    /**
+     * Çok tablolu JOIN ile rezervasyon listesi (Rezervasyon + Misafir + Oda + OdaTipi + Konaklama).
+     * Filtreler isteğe bağlıdır; gelmeyen filtre sorguya eklenmez.
+     */
+    public List<Map<String, Object>> rezervasyonAra(String durum, LocalDate baslangic, LocalDate bitis,
+                                                    String q, int limit) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT r.RezervasyonID, r.GirisTarihi, r.CikisTarihi, r.KisiSayisi, r.Durum, r.OlusturmaTarihi,
+                       DATEDIFF(r.CikisTarihi, r.GirisTarihi) AS GeceSayisi,
+                       m.MisafirID, CONCAT(m.Ad, ' ', m.Soyad) AS MisafirAdSoyad, m.Telefon,
+                       o.OdaID, o.OdaNo, ot.TipAdi,
+                       fn_KonaklamaUcreti(o.OdaTipiID, r.GirisTarihi, r.CikisTarihi) AS ToplamFiyat,
+                       k.KonaklamaID
+                  FROM Rezervasyon r
+                  JOIN Misafir m  ON m.MisafirID  = r.MisafirID
+                  JOIN Oda o      ON o.OdaID      = r.OdaID
+                  JOIN OdaTipi ot ON ot.OdaTipiID = o.OdaTipiID
+                  LEFT JOIN Konaklama k ON k.RezervasyonID = r.RezervasyonID
+                 WHERE 1 = 1""");
+        List<Object> p = new ArrayList<>();
+
+        if (durum != null)    { sql.append(" AND r.Durum = ?");       p.add(durum); }
+        if (baslangic != null){ sql.append(" AND r.CikisTarihi > ?"); p.add(baslangic); }
+        if (bitis != null)    { sql.append(" AND r.GirisTarihi <= ?");p.add(bitis); }
+        if (q != null && !q.isBlank()) {
+            sql.append(" AND (CONCAT(m.Ad, ' ', m.Soyad) LIKE ? OR o.OdaNo = ? OR CAST(r.RezervasyonID AS CHAR) = ?)");
+            p.add("%" + q.trim() + "%");
+            p.add(q.trim());
+            p.add(q.trim());
+        }
+        sql.append(" ORDER BY r.GirisTarihi DESC, r.RezervasyonID DESC LIMIT ?");
+        p.add(limit);
+
+        return db.sorgu(sql.toString(), p.toArray());
     }
 
     /** Tetikleyicilerin doldurduğu işlem günlüğü (en yeniler önce). */

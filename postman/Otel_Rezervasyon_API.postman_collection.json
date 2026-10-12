@@ -1162,6 +1162,175 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Misafir Ara",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const liste = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Arama çalıştı (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Ayşe Yılmaz bulundu\", () =>\r",
+                  "    pm.expect(liste.some(m => m.ad === \"Ayşe\" && m.soyad === \"Yılmaz\")).to.be.true);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/resepsiyon/misafirler?q=Yılmaz",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resepsiyon",
+                "misafirler"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Yılmaz"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Misafir Ekle (Walk-in)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Misafir kaydedildi (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.collectionVariables.set(\"walkinMisafirId\", pm.response.json().misafirId);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"ad\": \"Deniz\",\r\n  \"soyad\": \"Kapıdan\",\r\n  \"kimlikNo\": \"P{{$timestamp}}\",\r\n  \"eposta\": \"walkin{{$timestamp}}@example.com\",\r\n  \"telefon\": \"05551112233\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resepsiyon/misafirler",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resepsiyon",
+                "misafirler"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Onay Bekleyen Rezervasyonlar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const liste = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Liste geldi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Hepsi BEKLEMEDE\", () =>\r",
+                  "    liste.forEach(r => pm.expect(r.durum).to.eql(\"BEKLEMEDE\")));\r",
+                  "\r",
+                  "// İlkini bir sonraki istekte onaylamak için sakla\r",
+                  "if (liste.length > 0) pm.collectionVariables.set(\"onayRezId\", liste[0].rezervasyonId);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rezervasyonlar?durum=BEKLEMEDE&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rezervasyonlar"
+              ],
+              "query": [
+                {
+                  "key": "durum",
+                  "value": "BEKLEMEDE"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rezervasyon Onayla",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Onaylandı (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Durum ONAYLI\", () => pm.expect(r.durum).to.eql(\"ONAYLI\"));\r",
+                  "pm.test(\"E-posta için misafir bilgisi geldi\", () => pm.expect(r.eposta).to.include(\"@\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rezervasyonlar/{{onayRezId}}/onayla",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rezervasyonlar",
+                "{{onayRezId}}",
+                "onayla"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }
@@ -1239,6 +1408,14 @@
     },
     {
       "key": "katGorevlisiId",
+      "value": ""
+    },
+    {
+      "key": "walkinMisafirId",
+      "value": ""
+    },
+    {
+      "key": "onayRezId",
       "value": ""
     }
   ]
