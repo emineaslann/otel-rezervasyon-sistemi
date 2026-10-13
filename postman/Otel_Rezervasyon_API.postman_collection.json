@@ -1820,6 +1820,321 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Ek Hizmetler - Ekle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const h = pm.response.json();\r",
+                  "pm.test(\"Hizmet eklendi (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.test(\"Gönderilmeyen aktif alanı varsayılan olarak true\", () => pm.expect(h.aktif).to.be.true);\r",
+                  "pm.collectionVariables.set(\"yeniHizmetId\", h.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"hizmetAdi\": \"Bisiklet kiralama {{$timestamp}}\",\r\n  \"birimFiyat\": 150\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/ek-hizmetler",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "ek-hizmetler"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ek Hizmetler - Pasif Yap (Soft Delete)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Pasif yapıldı (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"aktif = false\", () => pm.expect(pm.response.json().aktif).to.be.false);\r",
+                  "\r",
+                  "// Herkese açık listede artık görünmemeli\r",
+                  "const id = Number(pm.collectionVariables.get(\"yeniHizmetId\"));\r",
+                  "pm.sendRequest(pm.collectionVariables.get(\"baseUrl\") + \"/api/ek-hizmetler\", (h, cevap) => {\r",
+                  "    pm.test(\"Pasif hizmet satış listesinde yok\", () =>\r",
+                  "        pm.expect(cevap.json().map(x => x.id)).to.not.include(id));\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"hizmetAdi\": \"Bisiklet kiralama {{$timestamp}}\",\r\n  \"birimFiyat\": 150,\r\n  \"aktif\": false\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/ek-hizmetler/{{yeniHizmetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "ek-hizmetler",
+                "{{yeniHizmetId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ek Hizmetler - Sil (Kullanımda, 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Satılmış hizmet silinemez (409)\", () => pm.response.to.have.status(409));\r",
+                  "pm.test(\"Pasif yapmayı öneriyor\", () =>\r",
+                  "    pm.expect(pm.response.json().mesaj).to.include(\"pasif\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/ek-hizmetler/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "ek-hizmetler",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ek Hizmetler - Sil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Silindi (204)\", () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/ek-hizmetler/{{yeniHizmetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "ek-hizmetler",
+                "{{yeniHizmetId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Personel - Ekle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const p = pm.response.json();\r",
+                  "pm.test(\"Personel eklendi (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.test(\"Aktif başladı\", () => pm.expect(p.aktif).to.be.true);\r",
+                  "pm.collectionVariables.set(\"yeniPersonelId\", p.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"ad\": \"Can\",\r\n  \"soyad\": \"Demir\",\r\n  \"gorev\": \"RESEPSIYON\",\r\n  \"iseGirisTarihi\": \"2026-10-01\",\r\n  \"telefon\": \"05321110010\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/personel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "personel"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Personel - Sil (İşlem Yapmış, 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"İşlem yapmış personel silinemez (409)\", () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/personel/2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "personel",
+                "2"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Personel - Pasif Yap (İşten Ayrılma)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Güncellendi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Pasif\", () => pm.expect(pm.response.json().aktif).to.be.false);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"ad\": \"Can\",\r\n  \"soyad\": \"Demir\",\r\n  \"gorev\": \"RESEPSIYON\",\r\n  \"iseGirisTarihi\": \"2026-10-01\",\r\n  \"telefon\": \"05321110010\",\r\n  \"aktif\": false\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/personel/{{yeniPersonelId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "personel",
+                "{{yeniPersonelId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Personel - Sil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Silindi (204)\", () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/yonetim/personel/{{yeniPersonelId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "yonetim",
+                "personel",
+                "{{yeniPersonelId}}"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }
@@ -1917,6 +2232,14 @@
     },
     {
       "key": "yeniSezonId",
+      "value": ""
+    },
+    {
+      "key": "yeniHizmetId",
+      "value": ""
+    },
+    {
+      "key": "yeniPersonelId",
       "value": ""
     }
   ]
