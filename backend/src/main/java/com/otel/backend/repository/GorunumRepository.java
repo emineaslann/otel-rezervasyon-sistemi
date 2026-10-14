@@ -106,6 +106,35 @@ public class GorunumRepository {
 
         return db.sorgu(sql.toString(), p.toArray());
     }
+    
+    /** Oda durumlarının dağılımı: GROUP BY ile gruplama. */
+    public List<Map<String, Object>> odaDurumDagilimi() {
+        return db.sorgu("SELECT Durum, COUNT(*) AS Adet FROM Oda GROUP BY Durum ORDER BY Durum");
+    }
+
+    /** Yönetici panosu için anlık sayılar. */
+    public Map<String, Object> genelOzet() {
+        return db.sorgu("""
+                SELECT (SELECT COUNT(*) FROM Oda) AS ToplamOda,
+                       (SELECT COUNT(*) FROM Konaklama WHERE GercekCikis IS NULL) AS OteldekiMisafir,
+                       (SELECT COUNT(*) FROM Rezervasyon WHERE Durum = 'BEKLEMEDE') AS OnayBekleyen,
+                       (SELECT COUNT(*) FROM Rezervasyon WHERE GirisTarihi = CURDATE()
+                          AND Durum IN ('BEKLEMEDE','ONAYLI')) AS BugunGiris,
+                       (SELECT COALESCE(SUM(Tutar), 0) FROM Odeme
+                         WHERE DATE(OdemeTarihi) = CURDATE()) AS BugunTahsilat""").get(0);
+    }
+
+    /** Son 90 günde en çok gelir getiren ek hizmetler: GROUP BY + HAVING. */
+    public List<Map<String, Object>> populerHizmetler() {
+        return db.sorgu("""
+                SELECT eh.HizmetAdi, SUM(kh.Adet) AS Adet, SUM(kh.Adet * kh.BirimFiyat) AS Gelir
+                  FROM KonaklamaHizmeti kh
+                  JOIN EkHizmet eh ON eh.EkHizmetID = kh.EkHizmetID
+                 WHERE kh.Tarih >= CURDATE() - INTERVAL 90 DAY
+                 GROUP BY eh.EkHizmetID, eh.HizmetAdi
+                HAVING SUM(kh.Adet) > 0
+                 ORDER BY Gelir DESC""");
+    }
 
     /** Tetikleyicilerin doldurduğu işlem günlüğü (en yeniler önce). */
     public List<Map<String, Object>> islemLog(int limit) {

@@ -2135,6 +2135,127 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Rapor - Aylık (Prosedür 3)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const d = new Date();\r",
+                  "d.setDate(1);\r",
+                  "d.setMonth(d.getMonth() - 1);          // geçen ay\r",
+                  "pm.variables.set(\"raporYil\", d.getFullYear());\r",
+                  "pm.variables.set(\"raporAy\", d.getMonth() + 1);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const r = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Prosedür çalıştı (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Doluluk 0-100 arasında\", () =>\r",
+                  "    pm.expect(r.ozet.dolulukYuzde).to.be.within(0, 100));\r",
+                  "pm.test(\"Günlük satırlar = ayın gün sayısı\", () =>\r",
+                  "    pm.expect(r.gunluk.length).to.eql(r.ozet.gunSayisi));\r",
+                  "pm.test(\"Günlük dolu odaların toplamı = satılan oda-gece\", () => {\r",
+                  "    const toplam = r.gunluk.reduce((t, g) => t + g.doluOda, 0);\r",
+                  "    pm.expect(toplam).to.eql(r.ozet.satilanOdaGece);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/raporlar/aylik?yil={{raporYil}}&ay={{raporAy}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "raporlar",
+                "aylik"
+              ],
+              "query": [
+                {
+                  "key": "yil",
+                  "value": "{{raporYil}}"
+                },
+                {
+                  "key": "ay",
+                  "value": "{{raporAy}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rapor - Yıllık",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Rapor - Pano (GROUP BY)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const p = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Pano geldi (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Oda durumlarının toplamı = toplam oda\", () => {\r",
+                  "    const toplam = p.odaDurumlari.reduce((t, x) => t + x.adet, 0);\r",
+                  "    pm.expect(toplam).to.eql(p.ozet.toplamOda);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/raporlar/pano",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "raporlar",
+                "pano"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "İşlem Günlüğü",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
         }
       ]
     }
