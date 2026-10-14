@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------
+   Kıyı Otel — görsel kimlik
+   Derin deniz yeşili (ana renk), kum (zemin), pirinç (vurgu)
+   --------------------------------------------------------------- */
+@theme {
+  --font-serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-deniz-50: #eef7f6;
+  --color-deniz-100: #d5ebe9;
+  --color-deniz-200: #acd6d2;
+  --color-deniz-300: #7bb9b4;
+  --color-deniz-400: #4f9893;
+  --color-deniz-500: #357c78;
+  --color-deniz-600: #286461;
+  --color-deniz-700: #22514f;
+  --color-deniz-800: #1d4241;
+  --color-deniz-900: #183837;
+  --color-deniz-950: #0c201f;
+
+  --color-kum-50: #fbf9f4;
+  --color-kum-100: #f4efe3;
+  --color-kum-200: #e8dec6;
+  --color-kum-300: #d7c59f;
+  --color-kum-400: #c5a978;
+
+  --color-pirinc-400: #cfa960;
+  --color-pirinc-500: #b88a3f;
+  --color-pirinc-600: #9a6f30;
+}
+
+body {
+  @apply bg-kum-50 text-slate-800 font-sans antialiased;
+}
