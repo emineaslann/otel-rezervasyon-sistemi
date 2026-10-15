@@ -41,7 +41,8 @@ public class GuvenlikYapilandirmasi {
             .authorizeHttpRequests(yetki -> yetki
                 // herkese açık uç noktalar
                 .requestMatchers(HttpMethod.POST, "/api/auth/giris", "/api/auth/kayit").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/oda-tipleri", "/api/odalar/bos", "/api/ek-hizmetler").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/oda-tipleri", "/api/odalar/bos", "/api/ek-hizmetler",
+                                 "/api/fiyat-dokumu").permitAll()
                 // rol bazlı alanlar
                 .requestMatchers("/api/yonetim/**", "/api/raporlar/**").hasRole("YONETICI")
                 .requestMatchers("/api/resepsiyon/**", "/api/konaklamalar/**").hasAnyRole("RESEPSIYON", "YONETICI")

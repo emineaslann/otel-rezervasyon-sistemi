@@ -135,6 +135,28 @@ public class GorunumRepository {
                 HAVING SUM(kh.Adet) > 0
                  ORDER BY Gelir DESC""");
     }
+    
+    /**
+     * Rezervasyon öncesi gece gece fiyat dökümü.
+     * Özyinelemeli CTE her geceyi üretir; fiyatı veritabanındaki fn_GecelikFiyat hesaplar.
+     */
+    public List<Map<String, Object>> fiyatDokumu(int odaTipiId, LocalDate giris, LocalDate cikis) {
+        return db.sorgu("""
+                WITH RECURSIVE geceler (Gece) AS (
+                    SELECT CAST(? AS DATE)
+                    UNION ALL
+                    SELECT Gece + INTERVAL 1 DAY FROM geceler
+                     WHERE Gece + INTERVAL 1 DAY < ?
+                )
+                SELECT g.Gece,
+                       COALESCE((SELECT s.SezonAdi FROM SezonFiyati s
+                                  WHERE s.OdaTipiID = ?
+                                    AND g.Gece BETWEEN s.BaslangicTarihi AND s.BitisTarihi
+                                  LIMIT 1), 'Temel fiyat') AS Sezon,
+                       fn_GecelikFiyat(?, g.Gece) AS Fiyat
+                  FROM geceler g
+                 ORDER BY g.Gece""", giris, cikis, odaTipiId, odaTipiId);
+    }
 
     /** Tetikleyicilerin doldurduğu işlem günlüğü (en yeniler önce). */
     public List<Map<String, Object>> islemLog(int limit) {

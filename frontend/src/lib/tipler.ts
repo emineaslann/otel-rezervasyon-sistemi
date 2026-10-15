@@ -41,3 +41,41 @@ export type GirisCevabi = {
   gecerlilikSaniye: number
   kullanici: Kullanici
 }
+
+/** /api/fiyat-dokumu satırı */
+export type FiyatSatiri = {
+  gece: string
+  sezon: string
+  fiyat: number
+}
+
+/** sp_RezervasyonOlustur'un döndürdüğü özet */
+export type RezervasyonSonucu = {
+  rezervasyonId: number
+  durum: string
+  girisTarihi: string
+  cikisTarihi: string
+  kisiSayisi: number
+  odaNo: string
+  tipAdi: string
+  geceSayisi: number
+  toplamFiyat: number
+}
+
+/** vw_MisafirRezervasyonlari satırı */
+export type MisafirRezervasyonu = {
+  rezervasyonId: number
+  girisTarihi: string
+  cikisTarihi: string
+  kisiSayisi: number
+  durum: 'BEKLEMEDE' | 'ONAYLI' | 'IPTAL' | 'TAMAMLANDI'
+  olusturmaTarihi: string
+  geceSayisi: number
+  odaNo: string
+  tipAdi: string
+  konaklamaId: number | null
+  gercekGiris: string | null
+  gercekCikis: string | null
+  tutar: number
+  odenen: number
+}

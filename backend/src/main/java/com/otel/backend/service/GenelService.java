@@ -16,6 +16,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
+import com.otel.backend.repository.GorunumRepository;
 /** Giriş yapmadan erişilebilen işlemler. */
 @Service
 @RequiredArgsConstructor
@@ -26,6 +27,7 @@ public class GenelService {
     private final OdaTipiRepository odaTipiRepo;
     private final EkHizmetRepository ekHizmetRepo;
     private final ProsedurRepository prosedurRepo;
+    private final GorunumRepository gorunumRepo;
 
     @Transactional(readOnly = true)
     public List<OdaTipiDto> odaTipleri() {
@@ -57,5 +59,16 @@ public class GenelService {
             throw ApiHatasi.gecersiz("Kişi sayısı 1 ile 10 arasında olmalı.");
         }
         return prosedurRepo.bosOdalar(giris, cikis, odaTipiId, kisi);
+    }
+    
+    /** Rezervasyon sayfası için gece gece fiyat dökümü */
+    public List<Map<String, Object>> fiyatDokumu(int odaTipiId, LocalDate giris, LocalDate cikis) {
+        if (!cikis.isAfter(giris)) {
+            throw ApiHatasi.gecersiz("Çıkış tarihi giriş tarihinden sonra olmalı.");
+        }
+        if (ChronoUnit.DAYS.between(giris, cikis) > MAKS_GECE) {
+            throw ApiHatasi.gecersiz("Tek rezervasyonda en fazla " + MAKS_GECE + " gece seçilebilir.");
+        }
+        return gorunumRepo.fiyatDokumu(odaTipiId, giris, cikis);
     }
 }

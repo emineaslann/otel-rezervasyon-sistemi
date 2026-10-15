@@ -38,4 +38,13 @@ public class GenelController {
             @RequestParam(required = false) Integer kisi) {
         return genelService.bosOdalar(giris, cikis, odaTipiId, kisi);
     }
+    
+    /** Örnek: GET /api/fiyat-dokumu?odaTipiId=2&giris=2026-10-21&cikis=2026-10-24 */
+    @GetMapping("/fiyat-dokumu")
+    public List<Map<String, Object>> fiyatDokumu(
+            @RequestParam int odaTipiId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate giris,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate cikis) {
+        return genelService.fiyatDokumu(odaTipiId, giris, cikis);
+    }
 }

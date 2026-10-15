@@ -3,6 +3,9 @@ import SiteDuzeni from './layouts/SiteDuzeni'
 import AnaSayfa from './pages/AnaSayfa'
 import AramaSonuclari from './pages/AramaSonuclari'
 import Giris from './pages/Giris'
+import Rezervasyon from './pages/Rezervasyon'
+import GirisGerekli from './components/GirisGerekli'
+import Hesabim from './pages/Hesabim'
 
 const YakindaSayfasi = ({ ad }: { ad: string }) => (
   <div className="mx-auto max-w-6xl px-6 py-24 text-center text-slate-500">{ad} sayfası yakında</div>
@@ -15,8 +18,12 @@ export default function App() {
       <Route element={<SiteDuzeni />}>
         <Route index element={<AnaSayfa />} />
         <Route path="arama" element={<AramaSonuclari />} />
-        <Route path="rezervasyon" element={<YakindaSayfasi ad="Rezervasyon" />} />
-        <Route path="hesabim" element={<YakindaSayfasi ad="Hesabım" />} />
+        <Route path="rezervasyon" element={
+          <GirisGerekli roller={['MISAFIR']}><Rezervasyon /></GirisGerekli>
+        } />
+                <Route path="hesabim" element={
+          <GirisGerekli roller={['MISAFIR']}><Hesabim /></GirisGerekli>
+        } />
       </Route>
 
       {/* Menüsüz tam ekran sayfa */}
